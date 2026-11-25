@@ -1,0 +1,197 @@
+Official spec: 一人付服务端 API v1.1.2
+Server in spec: https://pay.ai6666.com/api/pay/v1
+
+endpoint                       http  schema             verdict
+GET /product                    200  Product            OK
+GET /capabilities               200  Capabilities       OK
+POST /purchase                  200  Purchase           OK
+POST /purchase/query            200  Record             OK
+POST /access                    200  Access             OK
+POST /consume                   200  Consumption        OK
+POST /consumption               200  Consumption        OK
+POST /transactions/query        200  TransactionStatus  OK
+GET /webhook                    200  WebhookRead        OK
+PUT /webhook                    200  WebhookSaved       OK
+POST /webhook/rotate            200  WebhookSecret      OK
+POST /events/list               200  EventList          OK
+
+Capability flags: OK
+Operation inventory: 19/19 official ops routed
+
+OPENAPI CONFORMANCE OK — mock satisfies the official 1.1.2 response contracts
+{
+  "spec_version": "1.1.2",
+  "probe": {
+    "results": [
+      {
+        "endpoint": "GET /product",
+        "http": 200,
+        "schema": "Product",
+        "errors": [],
+        "conforms": true
+      },
+      {
+        "endpoint": "GET /capabilities",
+        "http": 200,
+        "schema": "Capabilities",
+        "errors": [],
+        "conforms": true
+      },
+      {
+        "endpoint": "POST /purchase",
+        "http": 200,
+        "schema": "Purchase",
+        "errors": [],
+        "conforms": true
+      },
+      {
+        "endpoint": "POST /purchase/query",
+        "http": 200,
+        "schema": "Record",
+        "errors": [],
+        "conforms": true
+      },
+      {
+        "endpoint": "POST /access",
+        "http": 200,
+        "schema": "Access",
+        "errors": [],
+        "conforms": true
+      },
+      {
+        "endpoint": "POST /consume",
+        "http": 200,
+        "schema": "Consumption",
+        "errors": [],
+        "conforms": true
+      },
+      {
+        "endpoint": "POST /consumption",
+        "http": 200,
+        "schema": "Consumption",
+        "errors": [],
+        "conforms": true
+      },
+      {
+        "endpoint": "POST /transactions/query",
+        "http": 200,
+        "schema": "TransactionStatus",
+        "errors": [],
+        "conforms": true
+      },
+      {
+        "endpoint": "GET /webhook",
+        "http": 200,
+        "schema": "WebhookRead",
+        "errors": [],
+        "conforms": true
+      },
+      {
+        "endpoint": "PUT /webhook",
+        "http": 200,
+        "schema": "WebhookSaved",
+        "errors": [],
+        "conforms": true
+      },
+      {
+        "endpoint": "POST /webhook/rotate",
+        "http": 200,
+        "schema": "WebhookSecret",
+        "errors": [],
+        "conforms": true
+      },
+      {
+        "endpoint": "POST /events/list",
+        "http": 200,
+        "schema": "EventList",
+        "errors": [],
+        "conforms": true
+      }
+    ]
+  },
+  "capabilities": {
+    "required": [
+      "purchase_entry",
+      "entitlement_query",
+      "consumption",
+      "purchase_request_query",
+      "purchase_request_list",
+      "consumption_list",
+      "webhooks",
+      "entitlement_monitoring",
+      "transaction_query",
+      "transaction_list",
+      "refund",
+      "refund_query",
+      "bills",
+      "automatic_renewal",
+      "consumption_reversal"
+    ],
+    "declared": {
+      "purchase_entry": true,
+      "entitlement_query": true,
+      "consumption": true,
+      "purchase_request_query": true,
+      "purchase_request_list": false,
+      "consumption_list": false,
+      "webhooks": true,
+      "entitlement_monitoring": true,
+      "transaction_query": true,
+      "transaction_list": false,
+      "refund": false,
+      "refund_query": false,
+      "bills": false,
+      "automatic_renewal": false,
+      "consumption_reversal": false
+    },
+    "missing": [],
+    "non_bool": [],
+    "conforms": true
+  },
+  "inventory": {
+    "official": [
+      "GET /capabilities",
+      "GET /product",
+      "GET /webhook",
+      "POST /access",
+      "POST /bills",
+      "POST /consume",
+      "POST /consumption",
+      "POST /consumptions/list",
+      "POST /events/list",
+      "POST /events/{event}/retry",
+      "POST /purchase",
+      "POST /purchase/query",
+      "POST /purchases/list",
+      "POST /refunds",
+      "POST /refunds/query",
+      "POST /transactions/list",
+      "POST /transactions/query",
+      "POST /webhook/rotate",
+      "PUT /webhook"
+    ],
+    "implemented": [
+      "GET /capabilities",
+      "GET /product",
+      "GET /webhook",
+      "POST /access",
+      "POST /bills",
+      "POST /consume",
+      "POST /consumption",
+      "POST /consumptions/list",
+      "POST /events/list",
+      "POST /events/{event}/retry",
+      "POST /purchase",
+      "POST /purchase/query",
+      "POST /purchases/list",
+      "POST /refunds",
+      "POST /refunds/query",
+      "POST /transactions/list",
+      "POST /transactions/query",
+      "POST /webhook/rotate",
+      "PUT /webhook"
+    ],
+    "missing": []
+  },
+  "conforms": true
+}

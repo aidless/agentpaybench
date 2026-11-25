@@ -1,0 +1,4528 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "一人付服务端 API",
+    "version": "1.1.2",
+    "description": "完整文档修订：15 个已实现操作与 4 个待开放入口，协议运行版本仍为 1.1。条件字段、嵌套模型、分支示例及错误处理均列出；结构示例不代表真实支付。"
+  },
+  "servers": [
+    {
+      "url": "https://pay.ai6666.com/api/pay/v1"
+    }
+  ],
+  "paths": {
+    "/product": {
+      "get": {
+        "summary": "读取套餐与收费状态",
+        "operationId": "get_product",
+        "description": "查询支付宝当前收费配置和可售套餐，管理链接和网关字段不向商户返回。",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "502": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "503": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "409": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "200": {
+            "description": "HTTP 成功，仍须检查业务状态。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                },
+                "examples": {
+                  "1": {
+                    "summary": "次数包完整结构",
+                    "value": {
+                      "capability_status": "ENABLED",
+                      "product_name": "智能写作助手",
+                      "product_icon_url": "https://example.com/icon.png",
+                      "status_version": 1,
+                      "billing_mode": "QUANTITY",
+                      "quota_unit": "COUNT",
+                      "charging_options": [
+                        {
+                          "sku_id": "example-sku",
+                          "plan_id": "example-plan",
+                          "display_name": "20次包",
+                          "billing_mode": "QUANTITY",
+                          "price": "10.00",
+                          "currency": "CNY",
+                          "price_version": 1,
+                          "entitlement_rule": "QUOTA",
+                          "quota_unit": "COUNT",
+                          "quota_amount": 20
+                        }
+                      ],
+                      "reason_message": ""
+                    }
+                  },
+                  "2": {
+                    "summary": "时长包套餐分支",
+                    "value": {
+                      "capability_status": "ENABLED",
+                      "billing_mode": "ONE_TIME_DURATION",
+                      "charging_options": [
+                        {
+                          "sku_id": "example-month",
+                          "plan_id": "example-plan",
+                          "display_name": "月度会员",
+                          "billing_mode": "ONE_TIME_DURATION",
+                          "price": "10.00",
+                          "currency": "CNY",
+                          "price_version": 1,
+                          "entitlement_rule": "FIXED_DURATION",
+                          "duration_period": "MONTH"
+                        }
+                      ]
+                    }
+                  },
+                  "3": {
+                    "summary": "买断套餐分支",
+                    "value": {
+                      "capability_status": "ENABLED",
+                      "billing_mode": "ONE_TIME",
+                      "charging_options": [
+                        {
+                          "sku_id": "example-perpetual",
+                          "plan_id": "example-plan",
+                          "display_name": "永久使用",
+                          "billing_mode": "ONE_TIME",
+                          "price": "10.00",
+                          "currency": "CNY",
+                          "price_version": 1,
+                          "entitlement_rule": "PERPETUAL"
+                        }
+                      ]
+                    }
+                  },
+                  "4": {
+                    "summary": "未配置",
+                    "value": {
+                      "capability_status": "NOT_CONFIGURED",
+                      "charging_options": []
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-available": true,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ],
+          [
+            "502",
+            "PROVIDER_ERROR",
+            "支付宝请求、验签、上游业务或返回字段未通过校验",
+            "查询原结果或原参数延迟重试；需要时联系平台"
+          ],
+          [
+            "503",
+            "SERVICE_UNAVAILABLE",
+            "支付宝正式配置未加载",
+            "等待平台完成配置，保留原请求"
+          ],
+          [
+            "409",
+            "CONFLICT",
+            "支付宝平台身份、绑定关系或应用权限尚未完成",
+            "按返回说明联系平台或完成项目配置"
+          ]
+        ],
+        "x-notes": [
+          "价格与套餐来自支付宝，不传价格、plan_id 或 price_version 创建购买。",
+          "支付宝可能新增业务字段，本项目当前透传未移除的字段；忽略不认识的扩展字段，勿因新增字段直接报错。"
+        ]
+      }
+    },
+    "/purchase": {
+      "post": {
+        "summary": "创建购买入口",
+        "operationId": "post_purchase",
+        "description": "",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "400": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "502": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "503": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "409": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "200": {
+            "description": "HTTP 成功，仍须检查业务状态。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Purchase"
+                },
+                "examples": {
+                  "1": {
+                    "summary": "指定档位 READY",
+                    "value": {
+                      "status": "READY",
+                      "idempotency_key": "purchase-20261013-001",
+                      "purchase_url": "alipays://platformapi/startapp?appId=EXAMPLE",
+                      "purchase_qr_code": "https://mobilecodec.alipay.com/show.htm?code=EXAMPLE",
+                      "expire_time": "2026-10-13 23:59:59",
+                      "charging_option": {
+                        "sku_id": "example-sku",
+                        "plan_id": "example-plan",
+                        "display_name": "20次包",
+                        "billing_mode": "QUANTITY",
+                        "price": "10.00",
+                        "currency": "CNY",
+                        "price_version": 1,
+                        "entitlement_rule": "QUOTA",
+                        "quota_unit": "COUNT",
+                        "quota_amount": 20
+                      }
+                    }
+                  },
+                  "2": {
+                    "summary": "普通入口 READY：无 charging_option",
+                    "value": {
+                      "status": "READY",
+                      "idempotency_key": "purchase-20261013-001",
+                      "purchase_url": "alipays://platformapi/startapp?appId=EXAMPLE",
+                      "purchase_qr_code": "https://mobilecodec.alipay.com/show.htm?code=EXAMPLE",
+                      "expire_time": "2026-10-13 23:59:59"
+                    }
+                  },
+                  "3": {
+                    "summary": "HTTP 200 待确认",
+                    "value": {
+                      "status": "UNKNOWN",
+                      "confirmed": false,
+                      "idempotency_key": "purchase-20261013-001",
+                      "message": "结果待确认，请使用相同请求重试或查询"
+                    }
+                  },
+                  "4": {
+                    "summary": "HTTP 200 明确失败",
+                    "value": {
+                      "status": "FAILED",
+                      "confirmed": false,
+                      "idempotency_key": "purchase-20261013-001",
+                      "message": "请求未成功，请核对权益、参数和收费状态",
+                      "reason_code": "NOW_PAY_PRODUCT_NOT_PURCHASABLE",
+                      "consumed": 0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-available": true,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ],
+          [
+            "400",
+            "INVALID_ARGUMENT",
+            "JSON 无效、多余字段、类型错误或参数超出表中限制",
+            "按参数表修正，JSON 正文最多 16 KiB，只能有一个对象"
+          ],
+          [
+            "502",
+            "PROVIDER_ERROR",
+            "支付宝请求、验签、上游业务或返回字段未通过校验",
+            "查询原结果或原参数延迟重试；需要时联系平台"
+          ],
+          [
+            "503",
+            "SERVICE_UNAVAILABLE",
+            "支付宝正式配置未加载",
+            "等待平台完成配置，保留原请求"
+          ],
+          [
+            "409",
+            "IDEMPOTENCY_CONFLICT",
+            "同一编号对应不同用户、套餐或返回地址",
+            "读取原业务记录，原参数重试，不换号绕过"
+          ],
+          [
+            "409",
+            "PURCHASE_ENTRY_EXPIRED",
+            "原 READY 入口已过期或无有效期限",
+            "确认旧入口失效后，为新的购买意图保存新编号"
+          ],
+          [
+            "409",
+            "CONFLICT",
+            "项目未启用新增购买、套餐已下架或上游配置有误",
+            "刷新 /product 或 /access，按实际权益处理"
+          ]
+        ],
+        "x-notes": [
+          "READY 只是入口有效。返回页面或扫码不是支付成功证明，付款后查 /access。",
+          "上游业务错误有时变成 HTTP 200 的 FAILED/UNKNOWN，必须同时检查 HTTP 与正文状态。"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurchaseInput"
+              },
+              "example": {
+                "user_id": "user-123",
+                "idempotency_key": "purchase-20261013-001",
+                "sku_id": "example-sku",
+                "callback_url": "https://你的项目官网/payment-return"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/access": {
+      "post": {
+        "summary": "查询使用权益或余额",
+        "operationId": "post_access",
+        "description": "",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "400": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "502": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "503": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "409": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "200": {
+            "description": "HTTP 成功，仍须检查业务状态。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Access"
+                },
+                "examples": {
+                  "1": {
+                    "summary": "永久买断 ALLOW",
+                    "value": {
+                      "access_granted": true,
+                      "decision": "ALLOW",
+                      "capability_status": "ENABLED",
+                      "product_name": "智能写作助手",
+                      "product_icon_url": "https://example.com/icon.png",
+                      "charging_options": [
+                        {
+                          "sku_id": "example-perpetual",
+                          "plan_id": "example-plan",
+                          "display_name": "永久使用",
+                          "billing_mode": "ONE_TIME",
+                          "price": "10.00",
+                          "currency": "CNY",
+                          "price_version": 1,
+                          "entitlement_rule": "PERPETUAL"
+                        }
+                      ]
+                    }
+                  },
+                  "2": {
+                    "summary": "时长包 ALLOW",
+                    "value": {
+                      "access_granted": true,
+                      "decision": "ALLOW",
+                      "valid_from": "2026-10-13 10:00:00",
+                      "valid_until": "2026-11-13 10:00:00",
+                      "capability_status": "ENABLED",
+                      "charging_options": [
+                        {
+                          "sku_id": "example-month",
+                          "plan_id": "example-plan",
+                          "display_name": "月度会员",
+                          "billing_mode": "ONE_TIME_DURATION",
+                          "price": "10.00",
+                          "currency": "CNY",
+                          "price_version": 1,
+                          "entitlement_rule": "FIXED_DURATION",
+                          "duration_period": "MONTH"
+                        }
+                      ]
+                    }
+                  },
+                  "3": {
+                    "summary": "需要购买",
+                    "value": {
+                      "access_granted": false,
+                      "decision": "PURCHASE_REQUIRED",
+                      "capability_status": "ENABLED",
+                      "reason_code": "EXAMPLE_PURCHASE_REQUIRED",
+                      "purchase_url": "alipays://platformapi/startapp?appId=EXAMPLE",
+                      "purchase_qr_code": "https://mobilecodec.alipay.com/show.htm?code=EXAMPLE",
+                      "charging_options": [
+                        {
+                          "sku_id": "example-month",
+                          "plan_id": "example-plan",
+                          "display_name": "月度会员",
+                          "billing_mode": "ONE_TIME_DURATION",
+                          "price": "10.00",
+                          "currency": "CNY",
+                          "price_version": 1,
+                          "entitlement_rule": "FIXED_DURATION",
+                          "duration_period": "MONTH"
+                        }
+                      ]
+                    }
+                  },
+                  "4": {
+                    "summary": "不允许访问",
+                    "value": {
+                      "access_granted": false,
+                      "decision": "DENY",
+                      "capability_status": "DISABLED",
+                      "reason_code": "EXAMPLE_DENIED",
+                      "charging_options": []
+                    }
+                  },
+                  "5": {
+                    "summary": "次数或积分余额：POINT 使用相同字段",
+                    "value": {
+                      "access_granted": true,
+                      "requires_consumption": true,
+                      "quota_unit": "COUNT",
+                      "total": 20,
+                      "used": 1,
+                      "remaining": 19,
+                      "as_of_time": "2026-10-13 10:05:00"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-available": true,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ],
+          [
+            "400",
+            "INVALID_ARGUMENT",
+            "JSON 无效、多余字段、类型错误或参数超出表中限制",
+            "按参数表修正，JSON 正文最多 16 KiB，只能有一个对象"
+          ],
+          [
+            "502",
+            "PROVIDER_ERROR",
+            "支付宝请求、验签、上游业务或返回字段未通过校验",
+            "查询原结果或原参数延迟重试；需要时联系平台"
+          ],
+          [
+            "503",
+            "SERVICE_UNAVAILABLE",
+            "支付宝正式配置未加载",
+            "等待平台完成配置，保留原请求"
+          ],
+          [
+            "409",
+            "CONFLICT",
+            "收费模式或额度单位未有效配置、上游配置/权限错误",
+            "刷新收费配置，不猜测用户权益"
+          ]
+        ],
+        "x-notes": [
+          "买断/时长只在 ALLOW 且 access_granted=true 时放行；DENY 不新建购买入口。",
+          "额度查询不扣减；足够后仍需 /consume。未确认到账时有限次数刷新，不引导重复付款。"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Buyer"
+              },
+              "example": {
+                "user_id": "user-123",
+                "amount": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "/consume": {
+      "post": {
+        "summary": "正式扣减次数或积分",
+        "operationId": "post_consume",
+        "description": "",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "400": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "503": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "409": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "200": {
+            "description": "HTTP 成功，仍须检查业务状态。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Consumption"
+                },
+                "examples": {
+                  "1": {
+                    "summary": "成功：全部已知正常字段",
+                    "value": {
+                      "status": "SUCCEEDED",
+                      "confirmed": true,
+                      "idempotency_key": "job-20261013-001",
+                      "consume_status": "SUCCEEDED",
+                      "consume_order_id": "example-consumption",
+                      "consume_reason": "生成一篇文章",
+                      "quota_unit": "COUNT",
+                      "consumed": 1,
+                      "remaining": 19,
+                      "update_time": "2026-10-13 10:05:00"
+                    }
+                  },
+                  "2": {
+                    "summary": "失败业务响应",
+                    "value": {
+                      "status": "FAILED",
+                      "confirmed": false,
+                      "idempotency_key": "job-20261013-001",
+                      "consume_status": "FAILED",
+                      "consume_order_id": "example-consumption",
+                      "consume_reason": "生成一篇文章",
+                      "quota_unit": "COUNT",
+                      "consumed": 0,
+                      "update_time": "2026-10-13 10:05:00",
+                      "reason_code": "EXAMPLE_FAILED"
+                    }
+                  },
+                  "3": {
+                    "summary": "处理中",
+                    "value": {
+                      "status": "PROCESSING",
+                      "confirmed": false,
+                      "idempotency_key": "job-20261013-001",
+                      "consume_status": "PROCESSING",
+                      "consume_order_id": "example-consumption",
+                      "consume_reason": "生成一篇文章",
+                      "quota_unit": "COUNT",
+                      "consumed": 0,
+                      "update_time": "2026-10-13 10:05:00"
+                    }
+                  },
+                  "4": {
+                    "summary": "上游错误生成的失败",
+                    "value": {
+                      "status": "FAILED",
+                      "confirmed": false,
+                      "idempotency_key": "job-20261013-001",
+                      "message": "请求未成功，请核对权益、参数和收费状态",
+                      "reason_code": "NOW_PAY_QUOTA_INSUFFICIENT",
+                      "consumed": 0
+                    }
+                  },
+                  "5": {
+                    "summary": "网络异常待确认",
+                    "value": {
+                      "status": "UNKNOWN",
+                      "confirmed": false,
+                      "idempotency_key": "job-20261013-001",
+                      "message": "结果待确认，请使用相同请求重试或查询"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-available": true,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ],
+          [
+            "400",
+            "INVALID_ARGUMENT",
+            "JSON 无效、多余字段、类型错误或参数超出表中限制",
+            "按参数表修正，JSON 正文最多 16 KiB，只能有一个对象"
+          ],
+          [
+            "503",
+            "SERVICE_UNAVAILABLE",
+            "支付宝正式配置未加载",
+            "等待平台完成配置，保留原请求"
+          ],
+          [
+            "409",
+            "IDEMPOTENCY_CONFLICT",
+            "同一任务编号的用户、amount 或 reason 改变",
+            "核对并重用原始参数"
+          ],
+          [
+            "409",
+            "CONFLICT",
+            "当前项目不是有效的次数或积分包",
+            "买断/时长只查询权益，不调用核销"
+          ]
+        ],
+        "x-notes": [
+          "只在 SUCCEEDED 且 confirmed=true 时确认扣减。PROCESSING/UNKNOWN 用原编号 /consumption 恢复。",
+          "NOW_PAY_QUOTA_INSUFFICIENT、INVALID_PARAMETER、BILLING_MODE_NOT_SUPPORTED 等上游明确错误可返回 HTTP 200 FAILED；其他异常可返回 HTTP 200 UNKNOWN，并附 reason_code。",
+          "服务交付另做幂等，当前无核销撤销或自动返还。"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsumeInput"
+              },
+              "example": {
+                "user_id": "user-123",
+                "idempotency_key": "job-20261013-001",
+                "amount": 1,
+                "reason": "生成一篇文章"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/consumption": {
+      "post": {
+        "summary": "查询并恢复原核销结果",
+        "operationId": "post_consumption",
+        "description": "只查询原核销，不发起新扣减。最终结果可能直接读取本地已确认记录。",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "400": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "503": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "404": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "409": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "200": {
+            "description": "HTTP 成功，仍须检查业务状态。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Consumption"
+                },
+                "examples": {
+                  "1": {
+                    "summary": "成功：全部已知正常字段",
+                    "value": {
+                      "status": "SUCCEEDED",
+                      "confirmed": true,
+                      "idempotency_key": "job-20261013-001",
+                      "consume_status": "SUCCEEDED",
+                      "consume_order_id": "example-consumption",
+                      "consume_reason": "生成一篇文章",
+                      "quota_unit": "COUNT",
+                      "consumed": 1,
+                      "remaining": 19,
+                      "update_time": "2026-10-13 10:05:00"
+                    }
+                  },
+                  "2": {
+                    "summary": "失败业务响应",
+                    "value": {
+                      "status": "FAILED",
+                      "confirmed": false,
+                      "idempotency_key": "job-20261013-001",
+                      "consume_status": "FAILED",
+                      "consume_order_id": "example-consumption",
+                      "consume_reason": "生成一篇文章",
+                      "quota_unit": "COUNT",
+                      "consumed": 0,
+                      "update_time": "2026-10-13 10:05:00",
+                      "reason_code": "EXAMPLE_FAILED"
+                    }
+                  },
+                  "3": {
+                    "summary": "处理中",
+                    "value": {
+                      "status": "PROCESSING",
+                      "confirmed": false,
+                      "idempotency_key": "job-20261013-001",
+                      "consume_status": "PROCESSING",
+                      "consume_order_id": "example-consumption",
+                      "consume_reason": "生成一篇文章",
+                      "quota_unit": "COUNT",
+                      "consumed": 0,
+                      "update_time": "2026-10-13 10:05:00"
+                    }
+                  },
+                  "4": {
+                    "summary": "上游错误生成的失败",
+                    "value": {
+                      "status": "FAILED",
+                      "confirmed": false,
+                      "idempotency_key": "job-20261013-001",
+                      "message": "请求未成功，请核对权益、参数和收费状态",
+                      "reason_code": "NOW_PAY_QUOTA_INSUFFICIENT",
+                      "consumed": 0
+                    }
+                  },
+                  "5": {
+                    "summary": "网络异常待确认",
+                    "value": {
+                      "status": "UNKNOWN",
+                      "confirmed": false,
+                      "idempotency_key": "job-20261013-001",
+                      "message": "结果待确认，请使用相同请求重试或查询"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-available": true,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ],
+          [
+            "400",
+            "INVALID_ARGUMENT",
+            "JSON 无效、多余字段、类型错误或参数超出表中限制",
+            "按参数表修正，JSON 正文最多 16 KiB，只能有一个对象"
+          ],
+          [
+            "503",
+            "SERVICE_UNAVAILABLE",
+            "支付宝正式配置未加载",
+            "等待平台完成配置，保留原请求"
+          ],
+          [
+            "404",
+            "NOT_FOUND",
+            "本项目找不到原核销请求",
+            "核对原编号，不换号重扣；必要时原参数重试 /consume"
+          ],
+          [
+            "409",
+            "CONFLICT",
+            "原核销编号属于不同 user_id",
+            "使用原用户和原编号"
+          ],
+          [
+            "409",
+            "IDEMPOTENCY_CONFLICT",
+            "保存的原核销参数与查询上下文冲突",
+            "核对原请求记录"
+          ]
+        ],
+        "x-notes": [
+          "consume_reason 可能不返回，商户保存原 reason。remaining 为历史核销时的余额，实时余额另查 /access。",
+          "上游查询未找到或结果未知仍保留 UNKNOWN，不能猜测为失败或生成新编号重扣。"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Lookup"
+              },
+              "example": {
+                "user_id": "user-123",
+                "idempotency_key": "job-20261013-001"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/purchase/query": {
+      "post": {
+        "summary": "查询原购买入口记录",
+        "operationId": "post_purchase_query",
+        "description": "",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "400": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "404": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "200": {
+            "description": "HTTP 成功，仍须检查业务状态。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Record"
+                },
+                "examples": {
+                  "1": {
+                    "summary": "已有购买入口记录",
+                    "value": {
+                      "id": "123",
+                      "kind": "purchase",
+                      "idempotency_key": "purchase-20261013-001",
+                      "status": "READY",
+                      "user_id": "user-123",
+                      "sku_id": "example-sku",
+                      "amount": null,
+                      "reason": null,
+                      "response": {
+                        "status": "READY",
+                        "idempotency_key": "purchase-20261013-001",
+                        "purchase_url": "alipays://platformapi/startapp?appId=EXAMPLE",
+                        "purchase_qr_code": "https://mobilecodec.alipay.com/show.htm?code=EXAMPLE",
+                        "expire_time": "2026-10-13 23:59:59",
+                        "charging_option": {
+                          "sku_id": "example-sku",
+                          "plan_id": "example-plan",
+                          "display_name": "20次包",
+                          "billing_mode": "QUANTITY",
+                          "price": "10.00",
+                          "currency": "CNY",
+                          "price_version": 1,
+                          "entitlement_rule": "QUOTA",
+                          "quota_unit": "COUNT",
+                          "quota_amount": 20
+                        }
+                      },
+                      "expires_at": "2026-10-13T15:59:59Z",
+                      "created_at": "2026-10-13T02:00:00Z",
+                      "updated_at": "2026-10-13T02:00:00Z",
+                      "payment_status": "NOT_AVAILABLE"
+                    }
+                  },
+                  "2": {
+                    "summary": "过期入口",
+                    "value": {
+                      "id": "123",
+                      "kind": "purchase",
+                      "idempotency_key": "purchase-20261013-001",
+                      "status": "EXPIRED",
+                      "user_id": "user-123",
+                      "sku_id": "example-sku",
+                      "amount": null,
+                      "reason": null,
+                      "response": {
+                        "status": "EXPIRED",
+                        "idempotency_key": "purchase-20261013-001"
+                      },
+                      "expires_at": "2026-10-13T15:59:59Z",
+                      "created_at": "2026-10-13T02:00:00Z",
+                      "updated_at": "2026-10-13T02:00:00Z",
+                      "payment_status": "NOT_AVAILABLE"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-available": true,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ],
+          [
+            "400",
+            "INVALID_ARGUMENT",
+            "JSON 无效、多余字段、类型错误或参数超出表中限制",
+            "按参数表修正，JSON 正文最多 16 KiB，只能有一个对象"
+          ],
+          [
+            "404",
+            "NOT_FOUND",
+            "本项目/用户没有匹配的购买入口请求",
+            "核对用户和原购买编号"
+          ]
+        ],
+        "x-notes": [
+          "只查本地记录，不新建入口，不确认付款。payment_status 固定 NOT_AVAILABLE。",
+          "response 的子字段根据原购买响应分支出现；过期后仅保留 EXPIRED 和业务编号。"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Lookup"
+              },
+              "example": {
+                "user_id": "user-123",
+                "idempotency_key": "purchase-20261013-001"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/purchases/list": {
+      "post": {
+        "summary": "购买入口请求列表",
+        "operationId": "post_purchases_list",
+        "description": "",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "400": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "200": {
+            "description": "HTTP 成功，仍须检查业务状态。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordList"
+                },
+                "examples": {
+                  "1": {
+                    "summary": "非空列表",
+                    "value": {
+                      "items": [
+                        {
+                          "id": "123",
+                          "kind": "purchase",
+                          "idempotency_key": "purchase-20261013-001",
+                          "status": "READY",
+                          "user_id": "user-123",
+                          "sku_id": "example-sku",
+                          "amount": null,
+                          "reason": null,
+                          "response": {
+                            "status": "READY",
+                            "idempotency_key": "purchase-20261013-001",
+                            "purchase_url": "alipays://platformapi/startapp?appId=EXAMPLE",
+                            "purchase_qr_code": "https://mobilecodec.alipay.com/show.htm?code=EXAMPLE",
+                            "expire_time": "2026-10-13 23:59:59",
+                            "charging_option": {
+                              "sku_id": "example-sku",
+                              "plan_id": "example-plan",
+                              "display_name": "20次包",
+                              "billing_mode": "QUANTITY",
+                              "price": "10.00",
+                              "currency": "CNY",
+                              "price_version": 1,
+                              "entitlement_rule": "QUOTA",
+                              "quota_unit": "COUNT",
+                              "quota_amount": 20
+                            }
+                          },
+                          "expires_at": "2026-10-13T15:59:59Z",
+                          "created_at": "2026-10-13T02:00:00Z",
+                          "updated_at": "2026-10-13T02:00:00Z",
+                          "payment_status": "NOT_AVAILABLE"
+                        }
+                      ],
+                      "has_more": true,
+                      "next_before_id": "123"
+                    }
+                  },
+                  "2": {
+                    "summary": "列表结束或为空",
+                    "value": {
+                      "items": [],
+                      "has_more": false,
+                      "next_before_id": ""
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-available": true,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ],
+          [
+            "400",
+            "INVALID_ARGUMENT",
+            "JSON 无效、多余字段、类型错误或参数超出表中限制",
+            "按参数表修正，JSON 正文最多 16 KiB，只能有一个对象"
+          ]
+        ],
+        "x-notes": [
+          "按 id 降序。下一页传 next_before_id 到 before_id，保留原筛选；has_more=false 时停止。",
+          "amount 在历史记录中是字符串或 null，和 /consume 输入整数不同。"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListInput"
+              },
+              "example": {
+                "user_id": "user-123",
+                "limit": 20
+              }
+            }
+          }
+        }
+      }
+    },
+    "/consumptions/list": {
+      "post": {
+        "summary": "正式核销记录列表",
+        "operationId": "post_consumptions_list",
+        "description": "",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "400": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "200": {
+            "description": "HTTP 成功，仍须检查业务状态。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordList"
+                },
+                "examples": {
+                  "1": {
+                    "summary": "非空列表",
+                    "value": {
+                      "items": [
+                        {
+                          "id": "122",
+                          "kind": "consume",
+                          "idempotency_key": "job-20261013-001",
+                          "status": "SUCCEEDED",
+                          "user_id": "user-123",
+                          "sku_id": null,
+                          "amount": "1",
+                          "reason": "生成一篇文章",
+                          "response": {
+                            "status": "SUCCEEDED",
+                            "confirmed": true,
+                            "idempotency_key": "job-20261013-001",
+                            "consume_status": "SUCCEEDED",
+                            "consume_order_id": "example-consumption",
+                            "consume_reason": "生成一篇文章",
+                            "quota_unit": "COUNT",
+                            "consumed": 1,
+                            "remaining": 19,
+                            "update_time": "2026-10-13 10:05:00"
+                          },
+                          "expires_at": null,
+                          "created_at": "2026-10-13T02:00:00Z",
+                          "updated_at": "2026-10-13T02:00:00Z"
+                        }
+                      ],
+                      "has_more": true,
+                      "next_before_id": "122"
+                    }
+                  },
+                  "2": {
+                    "summary": "列表结束或为空",
+                    "value": {
+                      "items": [],
+                      "has_more": false,
+                      "next_before_id": ""
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-available": true,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ],
+          [
+            "400",
+            "INVALID_ARGUMENT",
+            "JSON 无效、多余字段、类型错误或参数超出表中限制",
+            "按参数表修正，JSON 正文最多 16 KiB，只能有一个对象"
+          ]
+        ],
+        "x-notes": [
+          "按 id 降序。下一页传 next_before_id 到 before_id，保留原筛选；has_more=false 时停止。",
+          "amount 在历史记录中是字符串或 null，和 /consume 输入整数不同。"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListInput"
+              },
+              "example": {
+                "user_id": "user-123",
+                "limit": 20
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhook": {
+      "get": {
+        "summary": "读取通知配置",
+        "operationId": "get_webhook",
+        "description": "",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "200": {
+            "description": "HTTP 成功，仍须检查业务状态。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookRead"
+                },
+                "examples": {
+                  "1": {
+                    "summary": "已配置",
+                    "value": {
+                      "configured": true,
+                      "url": "https://你的项目官网/onepay/webhook",
+                      "enabled": true,
+                      "updated_at": "2026-10-13T02:00:00Z"
+                    }
+                  },
+                  "2": {
+                    "summary": "未配置",
+                    "value": {
+                      "configured": false,
+                      "url": "",
+                      "enabled": false
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-available": true,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ]
+        ],
+        "x-notes": [
+          "读取永远不返回 secret；密钥忘记后需轮换，并更新接收端。"
+        ]
+      },
+      "put": {
+        "summary": "保存或停用通知配置",
+        "operationId": "put_webhook",
+        "description": "",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "400": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "200": {
+            "description": "HTTP 成功，仍须检查业务状态。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookSaved"
+                },
+                "examples": {
+                  "1": {
+                    "summary": "首次创建：当次显示密钥",
+                    "value": {
+                      "configured": true,
+                      "url": "https://你的项目官网/onepay/webhook",
+                      "enabled": true,
+                      "secret": "whsec_EXAMPLE_ONLY"
+                    }
+                  },
+                  "2": {
+                    "summary": "后续保存：不返回密钥",
+                    "value": {
+                      "configured": true,
+                      "url": "https://你的项目官网/onepay/webhook",
+                      "enabled": false
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-available": true,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ],
+          [
+            "400",
+            "INVALID_ARGUMENT",
+            "JSON 无效、多余字段、类型错误或参数超出表中限制",
+            "按参数表修正，JSON 正文最多 16 KiB，只能有一个对象"
+          ],
+          [
+            "400",
+            "INVALID_WEBHOOK_URL",
+            "地址非官网同域公网 HTTPS 或含账号/参数/片段/错误端口",
+            "按通知地址限制修正"
+          ]
+        ],
+        "x-notes": [
+          "保存响应不含 updated_at；之后 GET /webhook 才读取更新时间。",
+          "停用期间不生成新事件，已有队列暂停。重新启用继续原队列，不补发已有历史。"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookInput"
+              },
+              "example": {
+                "url": "https://你的项目官网/onepay/webhook",
+                "enabled": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhook/rotate": {
+      "post": {
+        "summary": "轮换通知签名密钥",
+        "operationId": "post_webhook_rotate",
+        "description": "",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "404": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "200": {
+            "description": "HTTP 成功，仍须检查业务状态。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookSecret"
+                },
+                "examples": {
+                  "1": {
+                    "summary": "新密钥",
+                    "value": {
+                      "secret": "whsec_NEW_EXAMPLE_ONLY"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-available": true,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ],
+          [
+            "404",
+            "NOT_FOUND",
+            "没有保存过通知地址",
+            "先 PUT /webhook 保存配置"
+          ]
+        ],
+        "x-notes": [
+          "轮换立即生效，之后投递/重试使用新密钥；接收端切换期间可短暂同时验新旧密钥。"
+        ]
+      }
+    },
+    "/events/list": {
+      "post": {
+        "summary": "查询通知与投递记录",
+        "operationId": "post_events_list",
+        "description": "",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "400": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "200": {
+            "description": "HTTP 成功，仍须检查业务状态。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventList"
+                },
+                "examples": {
+                  "1": {
+                    "summary": "待投递通知的完整记录",
+                    "value": {
+                      "items": [
+                        {
+                          "id": "evt_example",
+                          "cursor_id": "321",
+                          "event_type": "entitlement.updated",
+                          "user_id": "user-123",
+                          "status": "PENDING",
+                          "attempts": 0,
+                          "last_http_status": null,
+                          "last_error": "",
+                          "created_at": "2026-10-13T02:00:00Z",
+                          "delivered_at": null,
+                          "next_attempt_at": "2026-10-13T02:00:00Z",
+                          "payload": {
+                            "id": "evt_example",
+                            "type": "entitlement.updated",
+                            "project_id": "opc_example",
+                            "user_id": "user-123",
+                            "created_at": "2026-10-13T02:00:00Z",
+                            "data": {
+                              "billing_mode": "QUANTITY",
+                              "quota_unit": "COUNT",
+                              "total": 20,
+                              "used": 0,
+                              "remaining": 20
+                            }
+                          }
+                        }
+                      ],
+                      "has_more": true,
+                      "next_before_id": "321"
+                    }
+                  },
+                  "2": {
+                    "summary": "核销事件的 data 分支",
+                    "value": {
+                      "items": [
+                        {
+                          "id": "evt_example",
+                          "cursor_id": "321",
+                          "event_type": "consumption.succeeded",
+                          "user_id": "user-123",
+                          "status": "PENDING",
+                          "attempts": 0,
+                          "last_http_status": null,
+                          "last_error": "",
+                          "created_at": "2026-10-13T02:00:00Z",
+                          "delivered_at": null,
+                          "next_attempt_at": "2026-10-13T02:00:00Z",
+                          "payload": {
+                            "id": "evt_example",
+                            "type": "consumption.succeeded",
+                            "project_id": "opc_example",
+                            "user_id": "user-123",
+                            "created_at": "2026-10-13T02:00:00Z",
+                            "data": {
+                              "status": "SUCCEEDED",
+                              "confirmed": true,
+                              "idempotency_key": "job-20261013-001",
+                              "consume_status": "SUCCEEDED",
+                              "consume_order_id": "example-consumption",
+                              "consume_reason": "生成一篇文章",
+                              "quota_unit": "COUNT",
+                              "consumed": 1,
+                              "remaining": 19,
+                              "update_time": "2026-10-13 10:05:00"
+                            }
+                          }
+                        }
+                      ],
+                      "has_more": false,
+                      "next_before_id": ""
+                    }
+                  },
+                  "3": {
+                    "summary": "时长权益事件 data 分支",
+                    "value": {
+                      "items": [
+                        {
+                          "id": "evt_example",
+                          "cursor_id": "321",
+                          "event_type": "entitlement.updated",
+                          "user_id": "user-123",
+                          "status": "PENDING",
+                          "attempts": 0,
+                          "last_http_status": null,
+                          "last_error": "",
+                          "created_at": "2026-10-13T02:00:00Z",
+                          "delivered_at": null,
+                          "next_attempt_at": "2026-10-13T02:00:00Z",
+                          "payload": {
+                            "id": "evt_example",
+                            "type": "entitlement.updated",
+                            "project_id": "opc_example",
+                            "user_id": "user-123",
+                            "created_at": "2026-10-13T02:00:00Z",
+                            "data": {
+                              "billing_mode": "ONE_TIME_DURATION",
+                              "decision": "ALLOW",
+                              "valid_from": "2026-10-13 10:00:00",
+                              "valid_until": "2026-11-13 10:00:00"
+                            }
+                          }
+                        }
+                      ],
+                      "has_more": false,
+                      "next_before_id": ""
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-available": true,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ],
+          [
+            "400",
+            "INVALID_ARGUMENT",
+            "JSON 无效、多余字段、类型错误或参数超出表中限制",
+            "按参数表修正，JSON 正文最多 16 KiB，只能有一个对象"
+          ]
+        ],
+        "x-notes": [
+          "分页使用 cursor_id，不使用 evt_ 开头的通知 id。payload 是接收端得到的完整正文。",
+          "权益 data 只含 billing_mode、decision、有效期或额度聚合字段；不含 access_granted、requires_consumption、as_of_time。"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListInput"
+              },
+              "example": {
+                "user_id": "user-123",
+                "limit": 20
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{event}/retry": {
+      "post": {
+        "summary": "重新排队通知",
+        "operationId": "post_events_event_retry",
+        "description": "",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "404": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "409": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "200": {
+            "description": "HTTP 成功，仍须检查业务状态。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Queued"
+                },
+                "examples": {
+                  "1": {
+                    "summary": "排队成功",
+                    "value": {
+                      "queued": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-available": true,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ],
+          [
+            "404",
+            "NOT_FOUND",
+            "当前项目没有该事件",
+            "使用 /events/list 返回的 id"
+          ],
+          [
+            "409",
+            "EVENT_NOT_RETRYABLE",
+            "已送达，或正在有效投递租约中",
+            "不重复排队，查看已有投递记录"
+          ],
+          [
+            "409",
+            "WEBHOOK_DISABLED",
+            "通知配置未启用",
+            "先保存并启用通知地址"
+          ]
+        ],
+        "x-notes": [
+          "无需 JSON 正文。每项目每小时最多 20 次，此外仍受凭证每分钟限额约束。",
+          "queued=true 只表示重新排队；attempts 归 0，稍后查询投递结果。"
+        ],
+        "parameters": [
+          {
+            "name": "event",
+            "in": "path",
+            "required": true,
+            "description": "从 /events/list 返回的 id，不能使用 cursor_id。",
+            "schema": {
+              "type": "string",
+              "description": "通知唯一 ID"
+            },
+            "example": "evt_example"
+          }
+        ]
+      }
+    },
+    "/capabilities": {
+      "get": {
+        "summary": "查询接口能力",
+        "operationId": "get_capabilities",
+        "description": "",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "200": {
+            "description": "HTTP 成功，仍须检查业务状态。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Capabilities"
+                },
+                "examples": {
+                  "1": {
+                    "summary": "当前能力完整结构",
+                    "value": {
+                      "api_version": "1.1",
+                      "provider_configured": false,
+                      "capabilities": {
+                        "purchase_entry": true,
+                        "entitlement_query": true,
+                        "consumption": true,
+                        "purchase_request_query": true,
+                        "purchase_request_list": true,
+                        "consumption_list": true,
+                        "webhooks": true,
+                        "entitlement_monitoring": true,
+                        "transaction_query": true,
+                        "transaction_list": false,
+                        "refund": false,
+                        "refund_query": false,
+                        "bills": false,
+                        "automatic_renewal": false,
+                        "consumption_reversal": false
+                      },
+                      "webhook_events": [
+                        "entitlement.observed",
+                        "entitlement.updated",
+                        "consumption.succeeded",
+                        "consumption.failed"
+                      ],
+                      "limitations": [
+                        "购买入口请求不代表已付款订单；权益通知不代表单笔支付成功通知。",
+                        "权益后台监测只覆盖已生成购买入口的用户，持续24小时；其他变化由 /access 查询触发。",
+                        "交易查询返回后台最近一次验签结果，不同步请求支付宝；请检查 checked_at。交易列表、退款和账单能力尚未开放。"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-available": true,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ]
+        ],
+        "x-notes": [
+          "能力为 true 表示当前实现包含该入口；配置、权限和项目状态仍需满足后才可正式使用。"
+        ]
+      }
+    },
+    "/transactions/query": {
+      "post": {
+        "summary": "查询支付交易状态",
+        "operationId": "post_transactions_query",
+        "description": "读取当前项目指定购买请求最近一次后台验签确认的交易状态；本次请求不直接查询支付宝，不发起支付、退款或修改权益。",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "400": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "404": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "200": {
+            "description": "HTTP 成功，仍须检查业务状态。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionStatus"
+                },
+                "examples": {
+                  "1": {
+                    "summary": "已支付",
+                    "value": {
+                      "project_id": "opc_example",
+                      "user_id": "user-123",
+                      "idempotency_key": "purchase-20261110-001",
+                      "status": "PAID",
+                      "trade_no": "202611100000000000000001",
+                      "checked_at": "2026-11-10T15:00:00Z",
+                      "status_source": "ALIPAY_PURCHASE_QUERY_V3",
+                      "created_at": "2026-11-10T14:59:00Z",
+                      "fetched_at": "2026-11-10T15:00:10Z"
+                    }
+                  },
+                  "2": {
+                    "summary": "待支付",
+                    "value": {
+                      "project_id": "opc_example",
+                      "user_id": "user-123",
+                      "idempotency_key": "purchase-20261110-001",
+                      "status": "PENDING",
+                      "trade_no": null,
+                      "checked_at": "2026-11-10T15:00:00Z",
+                      "status_source": "ALIPAY_PURCHASE_QUERY_V3",
+                      "created_at": "2026-11-10T14:59:00Z",
+                      "fetched_at": "2026-11-10T15:00:10Z"
+                    }
+                  },
+                  "3": {
+                    "summary": "已退款",
+                    "value": {
+                      "project_id": "opc_example",
+                      "user_id": "user-123",
+                      "idempotency_key": "purchase-20261110-001",
+                      "status": "REFUNDED",
+                      "trade_no": "202611100000000000000001",
+                      "checked_at": "2026-11-10T15:00:00Z",
+                      "status_source": "ALIPAY_PURCHASE_QUERY_V3",
+                      "created_at": "2026-11-10T14:59:00Z",
+                      "fetched_at": "2026-11-10T15:00:10Z"
+                    }
+                  },
+                  "4": {
+                    "summary": "待确认",
+                    "value": {
+                      "project_id": "opc_example",
+                      "user_id": "user-123",
+                      "idempotency_key": "purchase-20261110-001",
+                      "status": "UNKNOWN",
+                      "trade_no": null,
+                      "checked_at": null,
+                      "status_source": null,
+                      "created_at": "2026-11-10T14:59:00Z",
+                      "fetched_at": "2026-11-10T15:00:10Z"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-available": true,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ],
+          [
+            "400",
+            "INVALID_ARGUMENT",
+            "JSON 无效、多余字段、类型错误或参数超出表中限制",
+            "按参数表修正，JSON 正文最多 16 KiB，只能有一个对象"
+          ],
+          [
+            "404",
+            "NOT_FOUND",
+            "当前项目及用户下没有该购买请求",
+            "使用创建入口时的user_id和idempotency_key"
+          ]
+        ],
+        "x-notes": [
+          "PAID已支付，PENDING待支付，REFUNDED已退款，UNKNOWN待确认；UNKNOWN不能当作未支付或用于重复扣款。",
+          "新订单约5秒后开始后台查询；请检查checked_at，不要把fetched_at当作核验时间。建议15秒或更长间隔轮询，每凭证每分钟120次总限额。",
+          "待付或未知最多监测48小时；已支付每6小时复查至创建后30天，已退款停止。到期保留最后状态，不保证当前实时结果。",
+          "UNKNOWN包含尚未查询、失败无证据或成功响应缺少单笔订单号；不返回支付金额、到账金额、支付时间或退款金额。",
+          "旧/purchase/query继续查询购买入口；本次仅开放单笔状态，交易列表、退款和账单仍未开放。开通服务仍遵守/access及核销协议。"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Lookup"
+              },
+              "example": {
+                "user_id": "user-123",
+                "idempotency_key": "purchase-20261110-001"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/transactions/list": {
+      "post": {
+        "summary": "查询真实支付订单列表",
+        "operationId": "post_transactions_list",
+        "description": "待开放。当前实现不解析业务请求参数，也没有成功返回字段；有效鉴权后仅返回 501 能力错误。",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "501": {
+            "description": "当前仅返回能力错误，无成功结果。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "即刻收平台尚未提供或授权此能力；本接口不会发起交易、退款或修改权益",
+                  "error_code": "CAPABILITY_NOT_AVAILABLE",
+                  "request_id": "yrf_example",
+                  "retryable": false,
+                  "capability": "transaction_list"
+                }
+              }
+            }
+          }
+        },
+        "x-available": false,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ],
+          [
+            "501",
+            "CAPABILITY_NOT_AVAILABLE",
+            "该能力尚未提供或授权",
+            "不自动重试；不会执行资金或权益变更"
+          ]
+        ],
+        "x-notes": [
+          "没有可用的成功响应或资金操作，不构造未经提供的订单号、退款号、金额或账单参数。",
+          "先验证凭证和限流；鉴权失败仍可返回 401，不能仅以 HTTP 501 为所有请求的预期。"
+        ]
+      }
+    },
+    "/refunds": {
+      "post": {
+        "summary": "申请退款",
+        "operationId": "post_refunds",
+        "description": "待开放。当前实现不解析业务请求参数，也没有成功返回字段；有效鉴权后仅返回 501 能力错误。",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "501": {
+            "description": "当前仅返回能力错误，无成功结果。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "即刻收平台尚未提供或授权此能力；本接口不会发起交易、退款或修改权益",
+                  "error_code": "CAPABILITY_NOT_AVAILABLE",
+                  "request_id": "yrf_example",
+                  "retryable": false,
+                  "capability": "refund"
+                }
+              }
+            }
+          }
+        },
+        "x-available": false,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ],
+          [
+            "501",
+            "CAPABILITY_NOT_AVAILABLE",
+            "该能力尚未提供或授权",
+            "不自动重试；不会执行资金或权益变更"
+          ]
+        ],
+        "x-notes": [
+          "没有可用的成功响应或资金操作，不构造未经提供的订单号、退款号、金额或账单参数。",
+          "先验证凭证和限流；鉴权失败仍可返回 401，不能仅以 HTTP 501 为所有请求的预期。"
+        ]
+      }
+    },
+    "/refunds/query": {
+      "post": {
+        "summary": "查询退款",
+        "operationId": "post_refunds_query",
+        "description": "待开放。当前实现不解析业务请求参数，也没有成功返回字段；有效鉴权后仅返回 501 能力错误。",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "501": {
+            "description": "当前仅返回能力错误，无成功结果。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "即刻收平台尚未提供或授权此能力；本接口不会发起交易、退款或修改权益",
+                  "error_code": "CAPABILITY_NOT_AVAILABLE",
+                  "request_id": "yrf_example",
+                  "retryable": false,
+                  "capability": "refund_query"
+                }
+              }
+            }
+          }
+        },
+        "x-available": false,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ],
+          [
+            "501",
+            "CAPABILITY_NOT_AVAILABLE",
+            "该能力尚未提供或授权",
+            "不自动重试；不会执行资金或权益变更"
+          ]
+        ],
+        "x-notes": [
+          "没有可用的成功响应或资金操作，不构造未经提供的订单号、退款号、金额或账单参数。",
+          "先验证凭证和限流；鉴权失败仍可返回 401，不能仅以 HTTP 501 为所有请求的预期。"
+        ]
+      }
+    },
+    "/bills": {
+      "post": {
+        "summary": "获取对账账单",
+        "operationId": "post_bills",
+        "description": "待开放。当前实现不解析业务请求参数，也没有成功返回字段；有效鉴权后仅返回 501 能力错误。",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/APIError"
+          },
+          "501": {
+            "description": "当前仅返回能力错误，无成功结果。",
+            "headers": {
+              "X-Request-ID": {
+                "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+                "schema": {
+                  "type": "string",
+                  "description": "追踪编号"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "description": "application/json; charset=utf-8"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "description": "private, no-store"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "description": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "即刻收平台尚未提供或授权此能力；本接口不会发起交易、退款或修改权益",
+                  "error_code": "CAPABILITY_NOT_AVAILABLE",
+                  "request_id": "yrf_example",
+                  "retryable": false,
+                  "capability": "bills"
+                }
+              }
+            }
+          }
+        },
+        "x-available": false,
+        "x-errors": [
+          [
+            "401",
+            "INVALID_API_KEY",
+            "凭证缺失、格式错误、已撤销、归属账号不可用",
+            "检查当前项目的服务端凭证；不向前端暴露"
+          ],
+          [
+            "429",
+            "RATE_LIMITED",
+            "每凭证每分钟 120 次；部分操作另有项目限额",
+            "按 Retry-After 等待，用原编号和参数重试"
+          ],
+          [
+            "500",
+            "INTERNAL_ERROR",
+            "数据库、内部服务或未预期异常",
+            "保留原请求，先查询结果或延迟重试，提供 request_id 排查"
+          ],
+          [
+            "501",
+            "CAPABILITY_NOT_AVAILABLE",
+            "该能力尚未提供或授权",
+            "不自动重试；不会执行资金或权益变更"
+          ]
+        ],
+        "x-notes": [
+          "没有可用的成功响应或资金操作，不构造未经提供的订单号、退款号、金额或账单参数。",
+          "先验证凭证和限流；鉴权失败仍可返回 401，不能仅以 HTTP 501 为所有请求的预期。"
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "当前项目专属 yrp_live_ 凭证，只保存服务端；Cookie 不授权此 API。"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "供人阅读的错误说明，不按文案编写固定分支。",
+            "x-presence": "总是返回"
+          },
+          "error_code": {
+            "type": "string",
+            "description": "稳定的错误码；见每个接口的错误表。",
+            "x-presence": "总是返回"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "本次 HTTP 请求追踪编号，与 X-Request-ID 一致。",
+            "x-presence": "总是返回"
+          },
+          "retryable": {
+            "type": "boolean",
+            "description": "是否属于可重试错误；重试仍保持原业务编号和参数。",
+            "x-presence": "总是返回"
+          },
+          "capability": {
+            "type": "string",
+            "description": "未开放能力标识：transaction_list、refund、refund_query 或 bills。",
+            "x-presence": "仅 501 能力未开放时返回"
+          }
+        },
+        "required": [
+          "error",
+          "error_code",
+          "request_id",
+          "retryable"
+        ],
+        "additionalProperties": false,
+        "description": ""
+      },
+      "Buyer": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "商户服务端已认证用户的固定 ID；1–128 个字符，不能有首尾空白，购买、查询与核销使用相同 ID。",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "amount": {
+            "type": "integer",
+            "description": "本次需要的额度。仅次数/积分模式使用；不传或传 0 按 1。次数必须为 1，积分为 1–99999999；买断和时长包不使用此参数。",
+            "minimum": 0,
+            "maximum": 99999999,
+            "default": 1
+          },
+          "callback_url": {
+            "type": "string",
+            "description": "可选页面返回地址，最多 512 字节；HTTPS、无账号信息，主机及端口必须与项目官网一致。它不是支付成功通知。",
+            "format": "uri",
+            "maxLength": 512
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "additionalProperties": false,
+        "description": ""
+      },
+      "PurchaseInput": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "商户服务端已认证用户的固定 ID；1–128 个字符，不能有首尾空白，购买、查询与核销使用相同 ID。",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "idempotency_key": {
+            "type": "string",
+            "description": "本项目内对应购买意图或消费任务的唯一编号；1–128 个字符，无首尾空白。先保存再调用，重试保持原编号和原参数。",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "sku_id": {
+            "type": "string",
+            "description": "可选套餐编号，最多 128 字符；必须来自 /product 的当前档位。不传或空串由顾客在支付宝选择。",
+            "maxLength": 128
+          },
+          "callback_url": {
+            "type": "string",
+            "description": "可选页面返回地址，最多 512 字节；HTTPS、无账号信息，主机及端口必须与项目官网一致。它不是支付成功通知。",
+            "format": "uri",
+            "maxLength": 512
+          }
+        },
+        "required": [
+          "user_id",
+          "idempotency_key"
+        ],
+        "additionalProperties": false,
+        "description": ""
+      },
+      "Lookup": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "商户服务端已认证用户的固定 ID；1–128 个字符，不能有首尾空白，购买、查询与核销使用相同 ID。",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "idempotency_key": {
+            "type": "string",
+            "description": "本项目内对应购买意图或消费任务的唯一编号；1–128 个字符，无首尾空白。先保存再调用，重试保持原编号和原参数。",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "user_id",
+          "idempotency_key"
+        ],
+        "additionalProperties": false,
+        "description": ""
+      },
+      "ConsumeInput": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "商户服务端已认证用户的固定 ID；1–128 个字符，不能有首尾空白，购买、查询与核销使用相同 ID。",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "idempotency_key": {
+            "type": "string",
+            "description": "本项目内对应购买意图或消费任务的唯一编号；1–128 个字符，无首尾空白。先保存再调用，重试保持原编号和原参数。",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "amount": {
+            "type": "integer",
+            "description": "显式传入本次正式扣减量；COUNT 固定为 1，POINT 为 1–99999999。使用 JSON 整数，不能传字符串。",
+            "minimum": 1,
+            "maximum": 99999999
+          },
+          "reason": {
+            "type": "string",
+            "description": "1–256 字符的简短服务说明，不能全是空白。由商户保留，重试不变；不要传隐私、完整提示词或 JSON。",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "user_id",
+          "idempotency_key",
+          "amount",
+          "reason"
+        ],
+        "additionalProperties": false,
+        "description": ""
+      },
+      "ListInput": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "可选用户筛选；省略或空字符串时查当前项目全部用户，非空时遵守用户 ID 规则。",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "limit": {
+            "type": "integer",
+            "description": "每页记录数；省略默认 20，显式为 0 不合法。",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 20
+          },
+          "before_id": {
+            "type": "string",
+            "description": "上一页 next_before_id；省略或空串从第一页开始，非空须为可解析的正 int64 字符串。筛选改变后重新从首页开始。"
+          }
+        },
+        "required": [],
+        "additionalProperties": false,
+        "description": ""
+      },
+      "WebhookInput": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "最多 512 字节；项目官网同域名的公网 HTTPS 地址，仅 443 端口，无账号、查询参数或片段。不要使用私网地址或重定向。",
+            "format": "uri",
+            "maxLength": 512
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "必须显式提供 true 或 false；停用保留配置，暂停原队列且不生成新事件。"
+          }
+        },
+        "required": [
+          "url",
+          "enabled"
+        ],
+        "additionalProperties": false,
+        "description": ""
+      },
+      "WebhookRead": {
+        "type": "object",
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "description": "是否已经保存通知配置。",
+            "x-presence": "总是返回"
+          },
+          "url": {
+            "type": "string",
+            "description": "通知地址；未配置时为空字符串。",
+            "x-presence": "总是返回"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "配置是否启用；未配置时为 false。",
+            "x-presence": "总是返回"
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "最后保存或轮换配置的时间；带时区的 ISO 8601 时间。",
+            "format": "date-time",
+            "x-presence": "已配置时返回"
+          }
+        },
+        "required": [
+          "configured",
+          "url",
+          "enabled"
+        ],
+        "additionalProperties": false,
+        "description": ""
+      },
+      "WebhookSaved": {
+        "type": "object",
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "description": "保存成功固定为 true。",
+            "x-presence": "总是返回"
+          },
+          "url": {
+            "type": "string",
+            "description": "已保存的通知地址。",
+            "x-presence": "总是返回"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "已保存的启用状态。",
+            "x-presence": "总是返回"
+          },
+          "secret": {
+            "type": "string",
+            "description": "通知 HMAC 签名密钥，仅保存至接收服务端环境变量 YIRENFU_WEBHOOK_SECRET。",
+            "x-presence": "仅首次创建配置时返回；后续保存和读取不返回"
+          }
+        },
+        "required": [
+          "configured",
+          "url",
+          "enabled"
+        ],
+        "additionalProperties": false,
+        "description": ""
+      },
+      "WebhookSecret": {
+        "type": "object",
+        "properties": {
+          "secret": {
+            "type": "string",
+            "description": "新的通知签名密钥，立即生效，只显示当次；接收端完成切换后移除旧密钥。",
+            "x-presence": "总是返回"
+          }
+        },
+        "required": [
+          "secret"
+        ],
+        "additionalProperties": false,
+        "description": ""
+      },
+      "Queued": {
+        "type": "object",
+        "properties": {
+          "queued": {
+            "type": "boolean",
+            "description": "true 表示通知已重新排队，尚未证明接收端收到。",
+            "x-presence": "总是返回"
+          }
+        },
+        "required": [
+          "queued"
+        ],
+        "additionalProperties": false,
+        "description": ""
+      },
+      "ChargingOption": {
+        "type": "object",
+        "properties": {
+          "sku_id": {
+            "type": "string",
+            "description": "支付宝套餐编号，原样保存和回传，不解析。",
+            "x-presence": "套餐元素内返回"
+          },
+          "plan_id": {
+            "type": "string",
+            "description": "支付宝价格计划编号，仅展示/记录，不作为购买参数。",
+            "x-presence": "套餐元素内返回"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "套餐展示名称。",
+            "x-presence": "套餐元素内返回"
+          },
+          "billing_mode": {
+            "type": "string",
+            "description": "该套餐的收费模式。",
+            "enum": [
+              "ONE_TIME",
+              "ONE_TIME_DURATION",
+              "QUANTITY"
+            ],
+            "x-presence": "套餐元素内返回"
+          },
+          "price": {
+            "type": "string",
+            "description": "元为单位的十进制价格字符串；不要用前端金额替代。",
+            "x-presence": "套餐元素内返回"
+          },
+          "currency": {
+            "type": "string",
+            "description": "价格币种，例如 CNY。",
+            "x-presence": "套餐元素内返回"
+          },
+          "price_version": {
+            "type": "integer",
+            "description": "价格快照版本，仅展示/记录，不作为购买参数。",
+            "x-presence": "套餐元素内返回"
+          },
+          "entitlement_rule": {
+            "type": "string",
+            "description": "PERPETUAL 永久；FIXED_DURATION 时长；QUOTA 额度。",
+            "enum": [
+              "PERPETUAL",
+              "FIXED_DURATION",
+              "QUOTA"
+            ],
+            "x-presence": "套餐元素内返回"
+          },
+          "duration_period": {
+            "type": "string",
+            "description": "按日历计算周期，不将一个月固定换算为 30 天。",
+            "enum": [
+              "WEEK",
+              "MONTH",
+              "QUARTER",
+              "YEAR"
+            ],
+            "x-presence": "仅时长包返回"
+          },
+          "quota_unit": {
+            "type": "string",
+            "description": "COUNT 表示次数，POINT 表示积分。",
+            "enum": [
+              "COUNT",
+              "POINT"
+            ],
+            "x-presence": "仅次数/积分包返回"
+          },
+          "quota_amount": {
+            "type": "integer",
+            "description": "购买此套餐增加的次数或积分数量。",
+            "minimum": 1,
+            "x-presence": "仅次数/积分包返回"
+          }
+        },
+        "required": [
+          "sku_id",
+          "plan_id",
+          "display_name",
+          "billing_mode",
+          "price",
+          "currency",
+          "price_version",
+          "entitlement_rule"
+        ],
+        "additionalProperties": true,
+        "description": "字段按收费模式条件返回。"
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "capability_status": {
+            "type": "string",
+            "description": "只表示该项目是否允许新增购买；已有用户权益另查 /access。",
+            "enum": [
+              "NOT_CONFIGURED",
+              "CONFIGURING",
+              "PENDING",
+              "ACTION_REQUIRED",
+              "ENABLED",
+              "DISABLED",
+              "TERMINATED"
+            ],
+            "x-presence": "总是返回"
+          },
+          "product_name": {
+            "type": "string",
+            "description": "支付宝商品名称。",
+            "x-presence": "支付宝返回时提供"
+          },
+          "product_icon_url": {
+            "type": "string",
+            "description": "支付宝商品图标地址。",
+            "x-presence": "支付宝返回时提供"
+          },
+          "status_version": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "收费状态版本；官方预览与说明的类型口径不同，兼容整数和字符串，不作为修改参数。",
+            "x-presence": "支付宝返回时提供"
+          },
+          "billing_mode": {
+            "type": "string",
+            "description": "项目实际收费模式；未配置时可能省略或为空。",
+            "enum": [
+              "ONE_TIME",
+              "ONE_TIME_DURATION",
+              "QUANTITY",
+              ""
+            ],
+            "x-presence": "完成收费配置后使用"
+          },
+          "quota_unit": {
+            "type": "string",
+            "description": "COUNT 表示次数，POINT 表示积分。",
+            "enum": [
+              "COUNT",
+              "POINT"
+            ],
+            "x-presence": "仅 QUANTITY 使用"
+          },
+          "charging_options": {
+            "type": "array",
+            "description": "当前可售套餐，可为空数组；子字段说明适用于实际存在的元素。",
+            "items": {
+              "$ref": "#/components/schemas/ChargingOption"
+            },
+            "x-presence": "总是返回"
+          },
+          "reason_message": {
+            "type": "string",
+            "description": "可展示的收费状态说明，可能为空。",
+            "x-presence": "支付宝返回时提供"
+          }
+        },
+        "required": [
+          "capability_status",
+          "charging_options"
+        ],
+        "additionalProperties": true,
+        "description": "支付宝收费查询字段，去掉 code、msg、management_url；其他已知业务字段原样透传。"
+      },
+      "Access": {
+        "type": "object",
+        "properties": {
+          "access_granted": {
+            "type": "boolean",
+            "description": "买断/时长仅 decision=ALLOW 为 true；额度模式表示余额足够本次 amount，不表示已扣减。",
+            "x-presence": "总是返回"
+          },
+          "requires_consumption": {
+            "type": "boolean",
+            "description": "额度模式为 true，后续必须正式核销。",
+            "x-presence": "仅次数/积分包返回"
+          },
+          "decision": {
+            "type": "string",
+            "description": "ALLOW 放行；PURCHASE_REQUIRED 引导购买；DENY 不放行且不新建购买入口。",
+            "enum": [
+              "ALLOW",
+              "PURCHASE_REQUIRED",
+              "DENY"
+            ],
+            "x-presence": "仅买断/时长包返回"
+          },
+          "reason_code": {
+            "type": "string",
+            "description": "访问决策的业务原因码；不要按原因文案写逻辑。",
+            "x-presence": "买断/时长，支付宝返回时提供"
+          },
+          "valid_from": {
+            "type": "string",
+            "description": "权益生效时间；有效区间含起点；北京时间 yyyy-MM-dd HH:mm:ss。",
+            "x-presence": "仅时长包且 ALLOW 时返回"
+          },
+          "valid_until": {
+            "type": "string",
+            "description": "权益结束时间；有效区间不含终点；北京时间 yyyy-MM-dd HH:mm:ss。",
+            "x-presence": "仅时长包且 ALLOW 时返回"
+          },
+          "product_name": {
+            "type": "string",
+            "description": "支付宝商品名称。",
+            "x-presence": "买断/时长，支付宝返回时提供"
+          },
+          "product_icon_url": {
+            "type": "string",
+            "description": "支付宝商品图标。",
+            "x-presence": "买断/时长，支付宝返回时提供"
+          },
+          "capability_status": {
+            "type": "string",
+            "description": "项目收费状态；与当前用户权益分开判断。",
+            "enum": [
+              "NOT_CONFIGURED",
+              "CONFIGURING",
+              "PENDING",
+              "ACTION_REQUIRED",
+              "ENABLED",
+              "DISABLED",
+              "TERMINATED"
+            ],
+            "x-presence": "买断/时长的支付宝业务响应"
+          },
+          "purchase_url": {
+            "type": "string",
+            "description": "需要购买时返回的支付宝入口；直接使用，不解析或自行拼接。",
+            "x-presence": "买断/时长且 PURCHASE_REQUIRED 时返回"
+          },
+          "purchase_qr_code": {
+            "type": "string",
+            "description": "购买二维码地址。",
+            "x-presence": "买断/时长且 PURCHASE_REQUIRED 时返回"
+          },
+          "charging_options": {
+            "type": "array",
+            "description": "买断/时长可用套餐；可为空数组，额度字段不适用。",
+            "items": {
+              "$ref": "#/components/schemas/ChargingOption"
+            },
+            "x-presence": "仅买断/时长包返回"
+          },
+          "quota_unit": {
+            "type": "string",
+            "description": "COUNT 表示次数，POINT 表示积分。",
+            "enum": [
+              "COUNT",
+              "POINT"
+            ],
+            "x-presence": "仅次数/积分包返回"
+          },
+          "total": {
+            "type": "integer",
+            "description": "当前有效发放额度的聚合总量，不是所有历史购买总量。",
+            "minimum": 0,
+            "x-presence": "仅次数/积分包返回"
+          },
+          "used": {
+            "type": "integer",
+            "description": "上述有效额度的已使用量。",
+            "minimum": 0,
+            "x-presence": "仅次数/积分包返回"
+          },
+          "remaining": {
+            "type": "integer",
+            "description": "支付宝当前可消费余额。",
+            "minimum": 0,
+            "x-presence": "仅次数/积分包返回"
+          },
+          "as_of_time": {
+            "type": "string",
+            "description": "这次余额计算的时间；北京时间 yyyy-MM-dd HH:mm:ss。",
+            "x-presence": "仅次数/积分包返回"
+          }
+        },
+        "required": [
+          "access_granted"
+        ],
+        "additionalProperties": true,
+        "description": "两类响应分支：买断/时长访问决策，次数/积分客观余额。字段按对应分支返回。"
+      },
+      "Purchase": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "READY 有效购买入口；FAILED 明确失败；UNKNOWN 待确认。都不证明已付款。",
+            "enum": [
+              "READY",
+              "FAILED",
+              "UNKNOWN"
+            ],
+            "x-presence": "总是返回"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "description": "本项目内对应购买意图或消费任务的唯一编号；1–128 个字符，无首尾空白。先保存再调用，重试保持原编号和原参数。",
+            "minLength": 1,
+            "maxLength": 128,
+            "x-presence": "总是返回"
+          },
+          "purchase_url": {
+            "type": "string",
+            "description": "经过校验的支付宝购买入口。",
+            "x-presence": "READY 时返回"
+          },
+          "purchase_qr_code": {
+            "type": "string",
+            "description": "经过校验的二维码地址，可能为空字符串。",
+            "x-presence": "READY 时返回"
+          },
+          "expire_time": {
+            "type": "string",
+            "description": "购买入口失效时间；北京时间 yyyy-MM-dd HH:mm:ss。",
+            "x-presence": "READY 时返回"
+          },
+          "charging_option": {
+            "$ref": "#/components/schemas/ChargingOption",
+            "description": "锁定的套餐摘要，全部子字段见下。",
+            "x-presence": "指定 sku_id，且支付宝返回选中档位时提供"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "description": "异常响应为 false；本接口不确认支付，READY 分支没有此字段。",
+            "x-presence": "UNKNOWN 或 FAILED 的平台异常响应返回"
+          },
+          "message": {
+            "type": "string",
+            "description": "请求未确认或失败的展示说明。",
+            "x-presence": "UNKNOWN 或 FAILED 的平台异常响应返回"
+          },
+          "reason_code": {
+            "type": "string",
+            "description": "支付宝业务错误码；网络异常可能没有。",
+            "x-presence": "支付宝业务错误导致 UNKNOWN / FAILED 时返回"
+          },
+          "consumed": {
+            "type": "integer",
+            "description": "兼容的失败标记，固定 0，不表示发生消费。",
+            "minimum": 0,
+            "x-presence": "平台合成 FAILED 时返回"
+          }
+        },
+        "required": [
+          "status",
+          "idempotency_key"
+        ],
+        "additionalProperties": true,
+        "description": "有效入口与异常结果有不同字段，按状态处理。"
+      },
+      "Consumption": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "平台确认后的核销状态；只有 SUCCEEDED 并 confirmed=true 确认扣减。",
+            "enum": [
+              "SUCCEEDED",
+              "FAILED",
+              "PROCESSING",
+              "UNKNOWN"
+            ],
+            "x-presence": "总是返回"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "description": "是否已确认扣减成功。",
+            "x-presence": "总是返回"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "description": "本项目内对应购买意图或消费任务的唯一编号；1–128 个字符，无首尾空白。先保存再调用，重试保持原编号和原参数。",
+            "minLength": 1,
+            "maxLength": 128,
+            "x-presence": "总是返回"
+          },
+          "consume_status": {
+            "type": "string",
+            "description": "支付宝原始核销状态；处理以平台 status 和 confirmed 为准。",
+            "x-presence": "收到支付宝正常业务响应时返回"
+          },
+          "consume_order_id": {
+            "type": "string",
+            "description": "支付宝消费流水编号；不是购买请求号或支付交易号。",
+            "x-presence": "支付宝返回时提供"
+          },
+          "consume_reason": {
+            "type": "string",
+            "description": "消费说明；商户仍保存原 reason，不能依赖查询响应恢复它。",
+            "x-presence": "支付宝返回时提供；结果查询可能省略"
+          },
+          "quota_unit": {
+            "type": "string",
+            "description": "COUNT 表示次数，POINT 表示积分。",
+            "enum": [
+              "COUNT",
+              "POINT"
+            ],
+            "x-presence": "收到支付宝正常业务响应时返回"
+          },
+          "consumed": {
+            "type": "integer",
+            "description": "SUCCEEDED 时为实际扣减量；非成功收到业务结果时归 0，异常 UNKNOWN 可能省略。",
+            "minimum": 0,
+            "x-presence": "支付宝业务响应或平台合成 FAILED 时返回"
+          },
+          "remaining": {
+            "type": "integer",
+            "description": "该次成功核销后的余额，不是当前实时余额；实时值查 /access。",
+            "minimum": 0,
+            "x-presence": "仅确认 SUCCEEDED 时保留"
+          },
+          "reason_code": {
+            "type": "string",
+            "description": "失败、处理中的业务原因码；网络异常可能没有。",
+            "x-presence": "支付宝返回时提供"
+          },
+          "update_time": {
+            "type": "string",
+            "description": "支付宝该笔核销状态的更新时间；北京时间 yyyy-MM-dd HH:mm:ss。",
+            "x-presence": "收到支付宝正常业务响应时返回"
+          },
+          "message": {
+            "type": "string",
+            "description": "待确认或失败的可读说明。",
+            "x-presence": "平台合成 UNKNOWN / FAILED 时返回"
+          }
+        },
+        "required": [
+          "status",
+          "confirmed",
+          "idempotency_key"
+        ],
+        "additionalProperties": true,
+        "description": "成功、失败、处理中、异常四类分支；非成功响应不返回 remaining。"
+      },
+      "RequestResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "购买 READY/FAILED/UNKNOWN，过期 EXPIRED；核销 SUCCEEDED/FAILED/PROCESSING/UNKNOWN。未取得结果时 response 可能为空对象。",
+            "x-presence": "该响应分支存在时返回"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "description": "本项目内对应购买意图或消费任务的唯一编号；1–128 个字符，无首尾空白。先保存再调用，重试保持原编号和原参数。",
+            "minLength": 1,
+            "maxLength": 128,
+            "x-presence": "已有响应时返回"
+          },
+          "purchase_url": {
+            "type": "string",
+            "description": "经过校验的支付宝购买入口。",
+            "x-presence": "按原购买或核销响应分支返回；空响应及过期入口省略"
+          },
+          "purchase_qr_code": {
+            "type": "string",
+            "description": "经过校验的二维码地址，可能为空字符串。",
+            "x-presence": "按原购买或核销响应分支返回；空响应及过期入口省略"
+          },
+          "expire_time": {
+            "type": "string",
+            "description": "购买入口失效时间；北京时间 yyyy-MM-dd HH:mm:ss。",
+            "x-presence": "按原购买或核销响应分支返回；空响应及过期入口省略"
+          },
+          "charging_option": {
+            "$ref": "#/components/schemas/ChargingOption",
+            "description": "锁定的套餐摘要，全部子字段见下。",
+            "x-presence": "按原购买或核销响应分支返回；空响应及过期入口省略"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "description": "核销结果是否确认扣减；购买异常为 false，READY 购买入口不含此字段。",
+            "x-presence": "按原购买或核销响应分支返回；空响应及过期入口省略"
+          },
+          "message": {
+            "type": "string",
+            "description": "待确认或失败的可读说明。",
+            "x-presence": "按原购买或核销响应分支返回；空响应及过期入口省略"
+          },
+          "reason_code": {
+            "type": "string",
+            "description": "失败、处理中的业务原因码；网络异常可能没有。",
+            "x-presence": "按原购买或核销响应分支返回；空响应及过期入口省略"
+          },
+          "consumed": {
+            "type": "integer",
+            "description": "SUCCEEDED 时为实际扣减量；非成功收到业务结果时归 0，异常 UNKNOWN 可能省略。",
+            "minimum": 0,
+            "x-presence": "按原购买或核销响应分支返回；空响应及过期入口省略"
+          },
+          "consume_status": {
+            "type": "string",
+            "description": "支付宝原始核销状态；处理以平台 status 和 confirmed 为准。",
+            "x-presence": "按原购买或核销响应分支返回；空响应及过期入口省略"
+          },
+          "consume_order_id": {
+            "type": "string",
+            "description": "支付宝消费流水编号；不是购买请求号或支付交易号。",
+            "x-presence": "按原购买或核销响应分支返回；空响应及过期入口省略"
+          },
+          "consume_reason": {
+            "type": "string",
+            "description": "消费说明；商户仍保存原 reason，不能依赖查询响应恢复它。",
+            "x-presence": "按原购买或核销响应分支返回；空响应及过期入口省略"
+          },
+          "quota_unit": {
+            "type": "string",
+            "description": "COUNT 表示次数，POINT 表示积分。",
+            "enum": [
+              "COUNT",
+              "POINT"
+            ],
+            "x-presence": "按原购买或核销响应分支返回；空响应及过期入口省略"
+          },
+          "remaining": {
+            "type": "integer",
+            "description": "该次成功核销后的余额，不是当前实时余额；实时值查 /access。",
+            "minimum": 0,
+            "x-presence": "按原购买或核销响应分支返回；空响应及过期入口省略"
+          },
+          "update_time": {
+            "type": "string",
+            "description": "支付宝该笔核销状态的更新时间；北京时间 yyyy-MM-dd HH:mm:ss。",
+            "x-presence": "按原购买或核销响应分支返回；空响应及过期入口省略"
+          }
+        },
+        "required": [],
+        "additionalProperties": true,
+        "description": "记录中的原接口响应。购买按 Purchase 字段，核销按 Consumption 字段；过期入口 response 仅含 status 和 idempotency_key。"
+      },
+      "Record": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "当前平台记录 ID，以字符串表示；购买记录分页使用它。",
+            "x-presence": "总是返回"
+          },
+          "kind": {
+            "type": "string",
+            "description": "purchase 为入口请求；consume 为核销记录。",
+            "enum": [
+              "purchase",
+              "consume"
+            ],
+            "x-presence": "总是返回"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "description": "本项目内对应购买意图或消费任务的唯一编号；1–128 个字符，无首尾空白。先保存再调用，重试保持原编号和原参数。",
+            "minLength": 1,
+            "maxLength": 128,
+            "x-presence": "总是返回"
+          },
+          "status": {
+            "type": "string",
+            "description": "平台本地请求状态：购买 PENDING/READY/FAILED/UNKNOWN/EXPIRED；核销 PENDING/SUCCEEDED/FAILED/PROCESSING/UNKNOWN。",
+            "x-presence": "总是返回"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "商户服务端已认证用户的固定 ID；1–128 个字符，不能有首尾空白，购买、查询与核销使用相同 ID。",
+            "minLength": 1,
+            "maxLength": 128,
+            "x-presence": "总是返回"
+          },
+          "sku_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "购买指定的套餐编号；不指定或核销时为 null。",
+            "x-presence": "总是返回"
+          },
+          "amount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "核销请求的用量，列表返回字符串；购买记录为 null。",
+            "x-presence": "总是返回"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "核销时保存的原始 reason；购买记录为 null。",
+            "x-presence": "总是返回"
+          },
+          "response": {
+            "$ref": "#/components/schemas/RequestResult",
+            "description": "该次请求已保存的响应；未获得结果可为空对象。所有子字段按原接口分支返回。",
+            "x-presence": "总是返回"
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "购买入口失效时间，ISO 8601；核销或未知入口为 null。",
+            "x-presence": "总是返回"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "平台请求记录创建时间；带时区的 ISO 8601 时间。",
+            "format": "date-time",
+            "x-presence": "总是返回"
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "平台请求记录最后更新时间；带时区的 ISO 8601 时间。",
+            "format": "date-time",
+            "x-presence": "总是返回"
+          },
+          "payment_status": {
+            "type": "string",
+            "description": "固定 NOT_AVAILABLE，平台暂不提供单笔付款状态。",
+            "enum": [
+              "NOT_AVAILABLE"
+            ],
+            "x-presence": "仅 purchase 记录返回"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "idempotency_key",
+          "status",
+          "user_id",
+          "sku_id",
+          "amount",
+          "reason",
+          "response",
+          "expires_at",
+          "created_at",
+          "updated_at"
+        ],
+        "additionalProperties": true,
+        "description": ""
+      },
+      "RecordList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "请求记录数组，可为空。",
+            "items": {
+              "$ref": "#/components/schemas/Record"
+            },
+            "x-presence": "总是返回"
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "是否还有下一页。",
+            "x-presence": "总是返回"
+          },
+          "next_before_id": {
+            "type": "string",
+            "description": "有下一页时为本页最后一条 id，否则为空串。",
+            "x-presence": "总是返回"
+          }
+        },
+        "required": [
+          "items",
+          "has_more",
+          "next_before_id"
+        ],
+        "additionalProperties": false,
+        "description": ""
+      },
+      "EventData": {
+        "type": "object",
+        "properties": {
+          "billing_mode": {
+            "type": "string",
+            "description": "权益快照对应的收费方式。",
+            "enum": [
+              "ONE_TIME",
+              "ONE_TIME_DURATION",
+              "QUANTITY"
+            ],
+            "x-presence": "仅 entitlement 事件返回"
+          },
+          "decision": {
+            "type": "string",
+            "description": "ALLOW 放行；PURCHASE_REQUIRED 引导购买；DENY 不放行且不新建购买入口。",
+            "enum": [
+              "ALLOW",
+              "PURCHASE_REQUIRED",
+              "DENY"
+            ],
+            "x-presence": "仅买断/时长包返回"
+          },
+          "valid_from": {
+            "type": "string",
+            "description": "权益生效时间；有效区间含起点；北京时间 yyyy-MM-dd HH:mm:ss。",
+            "x-presence": "仅时长包且 ALLOW 时返回"
+          },
+          "valid_until": {
+            "type": "string",
+            "description": "权益结束时间；有效区间不含终点；北京时间 yyyy-MM-dd HH:mm:ss。",
+            "x-presence": "仅时长包且 ALLOW 时返回"
+          },
+          "quota_unit": {
+            "type": "string",
+            "description": "COUNT 表示次数，POINT 表示积分。",
+            "enum": [
+              "COUNT",
+              "POINT"
+            ],
+            "x-presence": "权益事件按收费模式返回；核销事件按原核销结果返回"
+          },
+          "total": {
+            "type": "integer",
+            "description": "当前有效发放额度的聚合总量，不是所有历史购买总量。",
+            "minimum": 0,
+            "x-presence": "仅次数/积分包返回"
+          },
+          "used": {
+            "type": "integer",
+            "description": "上述有效额度的已使用量。",
+            "minimum": 0,
+            "x-presence": "仅次数/积分包返回"
+          },
+          "remaining": {
+            "type": "integer",
+            "description": "权益事件为查询时的当前余额；核销成功事件为该次核销后的历史余额，实时值查 /access。",
+            "minimum": 0,
+            "x-presence": "权益事件的额度分支，或成功核销事件"
+          },
+          "status": {
+            "type": "string",
+            "description": "只推送已确认的最终核销状态；没有 PROCESSING 或 UNKNOWN 核销事件。",
+            "enum": [
+              "SUCCEEDED",
+              "FAILED"
+            ],
+            "x-presence": "仅核销事件，总是返回"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "description": "是否已确认扣减成功。",
+            "x-presence": "仅核销事件，总是返回"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "description": "本项目内对应购买意图或消费任务的唯一编号；1–128 个字符，无首尾空白。先保存再调用，重试保持原编号和原参数。",
+            "minLength": 1,
+            "maxLength": 128,
+            "x-presence": "仅核销事件，总是返回"
+          },
+          "consume_status": {
+            "type": "string",
+            "description": "支付宝原始核销状态；处理以平台 status 和 confirmed 为准。",
+            "x-presence": "仅核销事件，收到支付宝正常业务响应时返回"
+          },
+          "consume_order_id": {
+            "type": "string",
+            "description": "支付宝消费流水编号；不是购买请求号或支付交易号。",
+            "x-presence": "仅核销事件，支付宝返回时提供"
+          },
+          "consume_reason": {
+            "type": "string",
+            "description": "消费说明；商户仍保存原 reason，不能依赖查询响应恢复它。",
+            "x-presence": "仅核销事件，支付宝返回时提供；结果查询可能省略"
+          },
+          "consumed": {
+            "type": "integer",
+            "description": "SUCCEEDED 时为实际扣减量；非成功收到业务结果时归 0，异常 UNKNOWN 可能省略。",
+            "minimum": 0,
+            "x-presence": "仅核销事件，支付宝业务响应或平台合成 FAILED 时返回"
+          },
+          "reason_code": {
+            "type": "string",
+            "description": "失败、处理中的业务原因码；网络异常可能没有。",
+            "x-presence": "仅核销事件，支付宝返回时提供"
+          },
+          "update_time": {
+            "type": "string",
+            "description": "支付宝该笔核销状态的更新时间；北京时间 yyyy-MM-dd HH:mm:ss。",
+            "x-presence": "仅核销事件，收到支付宝正常业务响应时返回"
+          },
+          "message": {
+            "type": "string",
+            "description": "待确认或失败的可读说明。",
+            "x-presence": "仅核销事件，平台合成 UNKNOWN / FAILED 时返回"
+          }
+        },
+        "required": [],
+        "additionalProperties": true,
+        "description": "权益事件为查询快照（不含 as_of_time/access_granted），核销事件为对应原核销结果。"
+      },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "事件唯一 ID，按它防止重复处理，与 Yirenfu-Event-ID 一致。",
+            "x-presence": "总是返回"
+          },
+          "type": {
+            "type": "string",
+            "description": "事件类型。没有 payment.succeeded。",
+            "enum": [
+              "entitlement.observed",
+              "entitlement.updated",
+              "consumption.succeeded",
+              "consumption.failed"
+            ],
+            "x-presence": "总是返回"
+          },
+          "project_id": {
+            "type": "string",
+            "description": "事件归属的一人付项目 ID。",
+            "x-presence": "总是返回"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "商户服务端已认证用户的固定 ID；1–128 个字符，不能有首尾空白，购买、查询与核销使用相同 ID。",
+            "minLength": 1,
+            "maxLength": 128,
+            "x-presence": "总是返回"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "事件创建时间；带时区的 ISO 8601 时间。",
+            "format": "date-time",
+            "x-presence": "总是返回"
+          },
+          "data": {
+            "$ref": "#/components/schemas/EventData",
+            "description": "完整业务数据；按事件类型返回相应分支。",
+            "x-presence": "总是返回"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "project_id",
+          "user_id",
+          "created_at",
+          "data"
+        ],
+        "additionalProperties": false,
+        "description": ""
+      },
+      "EventRecord": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "通知唯一 ID；重试路径参数使用该 ID。",
+            "x-presence": "总是返回"
+          },
+          "cursor_id": {
+            "type": "string",
+            "description": "通知顺序号，以字符串表示；列表游标使用它，不使用事件 id。",
+            "x-presence": "总是返回"
+          },
+          "event_type": {
+            "type": "string",
+            "description": "事件类型，与 payload.type 相同。",
+            "enum": [
+              "entitlement.observed",
+              "entitlement.updated",
+              "consumption.succeeded",
+              "consumption.failed"
+            ],
+            "x-presence": "总是返回"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "商户服务端已认证用户的固定 ID；1–128 个字符，不能有首尾空白，购买、查询与核销使用相同 ID。",
+            "minLength": 1,
+            "maxLength": 128,
+            "x-presence": "总是返回"
+          },
+          "status": {
+            "type": "string",
+            "description": "PENDING 待发送；DELIVERING 投递中；DELIVERED 已送达；DEAD 重试耗尽。",
+            "enum": [
+              "PENDING",
+              "DELIVERING",
+              "DELIVERED",
+              "DEAD"
+            ],
+            "x-presence": "总是返回"
+          },
+          "attempts": {
+            "type": "integer",
+            "description": "当前投递尝试次数；人工重新排队会归 0。",
+            "minimum": 0,
+            "x-presence": "总是返回"
+          },
+          "last_http_status": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "最后一次接收端 HTTP 状态；尚未收到 HTTP 响应时为 null。",
+            "x-presence": "总是返回"
+          },
+          "last_error": {
+            "type": "string",
+            "description": "最后一次错误摘要；无错误时为空串。",
+            "x-presence": "总是返回"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "事件记录创建时间；带时区的 ISO 8601 时间。",
+            "format": "date-time",
+            "x-presence": "总是返回"
+          },
+          "delivered_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "送达时间，ISO 8601；尚未送达为 null。",
+            "x-presence": "总是返回"
+          },
+          "next_attempt_at": {
+            "type": "string",
+            "description": "调度记录的下一次尝试时间；送达后不据此重复投递；带时区的 ISO 8601 时间。",
+            "format": "date-time",
+            "x-presence": "总是返回"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/Event",
+            "description": "实际发送给接收端的事件正文，完整子字段如下。",
+            "x-presence": "总是返回"
+          }
+        },
+        "required": [
+          "id",
+          "cursor_id",
+          "event_type",
+          "user_id",
+          "status",
+          "attempts",
+          "last_http_status",
+          "last_error",
+          "created_at",
+          "delivered_at",
+          "next_attempt_at",
+          "payload"
+        ],
+        "additionalProperties": true,
+        "description": ""
+      },
+      "EventList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "通知记录，可为空。",
+            "items": {
+              "$ref": "#/components/schemas/EventRecord"
+            },
+            "x-presence": "总是返回"
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "是否还有下一页。",
+            "x-presence": "总是返回"
+          },
+          "next_before_id": {
+            "type": "string",
+            "description": "有下一页时为最后一条 cursor_id，否则为空串。",
+            "x-presence": "总是返回"
+          }
+        },
+        "required": [
+          "items",
+          "has_more",
+          "next_before_id"
+        ],
+        "additionalProperties": false,
+        "description": ""
+      },
+      "CapabilityFlags": {
+        "type": "object",
+        "properties": {
+          "purchase_entry": {
+            "type": "boolean",
+            "description": "创建购买入口；当前实现为 true，true 仍须正式配置及授权。",
+            "x-presence": "总是返回"
+          },
+          "entitlement_query": {
+            "type": "boolean",
+            "description": "查询权益与余额；当前实现为 true，true 仍须正式配置及授权。",
+            "x-presence": "总是返回"
+          },
+          "consumption": {
+            "type": "boolean",
+            "description": "正式核销与恢复；当前实现为 true，true 仍须正式配置及授权。",
+            "x-presence": "总是返回"
+          },
+          "purchase_request_query": {
+            "type": "boolean",
+            "description": "查询购买入口请求；当前实现为 true，true 仍须正式配置及授权。",
+            "x-presence": "总是返回"
+          },
+          "purchase_request_list": {
+            "type": "boolean",
+            "description": "购买请求列表；当前实现为 true，true 仍须正式配置及授权。",
+            "x-presence": "总是返回"
+          },
+          "consumption_list": {
+            "type": "boolean",
+            "description": "核销记录列表；当前实现为 true，true 仍须正式配置及授权。",
+            "x-presence": "总是返回"
+          },
+          "webhooks": {
+            "type": "boolean",
+            "description": "通知设置、验签及投递记录；当前实现为 true，true 仍须正式配置及授权。",
+            "x-presence": "总是返回"
+          },
+          "entitlement_monitoring": {
+            "type": "boolean",
+            "description": "购买入口受益人权益监测；当前实现为 true，true 仍须正式配置及授权。",
+            "x-presence": "总是返回"
+          },
+          "transaction_query": {
+            "type": "boolean",
+            "description": "单笔已核验交易状态查询；当前实现为 true，true 仍须正式配置及授权。",
+            "x-presence": "总是返回"
+          },
+          "transaction_list": {
+            "type": "boolean",
+            "description": "真实支付订单列表；当前实现为 false，true 仍须正式配置及授权。",
+            "x-presence": "总是返回"
+          },
+          "refund": {
+            "type": "boolean",
+            "description": "退款申请；当前实现为 false，true 仍须正式配置及授权。",
+            "x-presence": "总是返回"
+          },
+          "refund_query": {
+            "type": "boolean",
+            "description": "退款查询；当前实现为 false，true 仍须正式配置及授权。",
+            "x-presence": "总是返回"
+          },
+          "bills": {
+            "type": "boolean",
+            "description": "对账账单；当前实现为 false，true 仍须正式配置及授权。",
+            "x-presence": "总是返回"
+          },
+          "automatic_renewal": {
+            "type": "boolean",
+            "description": "自动续费；当前实现为 false，true 仍须正式配置及授权。",
+            "x-presence": "总是返回"
+          },
+          "consumption_reversal": {
+            "type": "boolean",
+            "description": "核销撤销；当前实现为 false，true 仍须正式配置及授权。",
+            "x-presence": "总是返回"
+          }
+        },
+        "required": [
+          "purchase_entry",
+          "entitlement_query",
+          "consumption",
+          "purchase_request_query",
+          "purchase_request_list",
+          "consumption_list",
+          "webhooks",
+          "entitlement_monitoring",
+          "transaction_query",
+          "transaction_list",
+          "refund",
+          "refund_query",
+          "bills",
+          "automatic_renewal",
+          "consumption_reversal"
+        ],
+        "additionalProperties": false,
+        "description": ""
+      },
+      "Capabilities": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "description": "运行时协议版本，当前 1.1。",
+            "x-presence": "总是返回"
+          },
+          "provider_configured": {
+            "type": "boolean",
+            "description": "是否加载支付宝正式配置；不表示每个项目或所有接口已开通。",
+            "x-presence": "总是返回"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/CapabilityFlags",
+            "description": "当前已实现和待开放的能力，全部子字段如下。",
+            "x-presence": "总是返回"
+          },
+          "webhook_events": {
+            "type": "array",
+            "description": "支持的通知事件类型，没有单笔支付成功事件。",
+            "items": {
+              "type": "string",
+              "description": "事件名称",
+              "enum": [
+                "entitlement.observed",
+                "entitlement.updated",
+                "consumption.succeeded",
+                "consumption.failed"
+              ]
+            },
+            "x-presence": "总是返回"
+          },
+          "limitations": {
+            "type": "array",
+            "description": "当前能力边界的文字说明。",
+            "items": {
+              "type": "string",
+              "description": "限制说明"
+            },
+            "x-presence": "总是返回"
+          }
+        },
+        "required": [
+          "api_version",
+          "provider_configured",
+          "capabilities",
+          "webhook_events",
+          "limitations"
+        ],
+        "additionalProperties": false,
+        "description": ""
+      },
+      "TransactionStatus": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "description": "凭证所属项目，不能查询其他项目。",
+            "x-presence": "总是返回"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "商户服务端已认证用户的固定 ID；1–128 个字符，不能有首尾空白，购买、查询与核销使用相同 ID。",
+            "minLength": 1,
+            "maxLength": 128,
+            "x-presence": "总是返回"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "description": "本项目内对应购买意图或消费任务的唯一编号；1–128 个字符，无首尾空白。先保存再调用，重试保持原编号和原参数。",
+            "minLength": 1,
+            "maxLength": 128,
+            "x-presence": "总是返回"
+          },
+          "status": {
+            "type": "string",
+            "description": "后台验签确认的交易状态；不以购买入口或试购权益判断。",
+            "enum": [
+              "PAID",
+              "PENDING",
+              "REFUNDED",
+              "UNKNOWN"
+            ],
+            "x-presence": "总是返回"
+          },
+          "trade_no": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "支付宝订单号，仅PAID或REFUNDED有值，其他为null。",
+            "x-presence": "总是返回"
+          },
+          "checked_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "最近验签查询时间，ISO 8601；未核验为null，不是付款时间。",
+            "x-presence": "总是返回"
+          },
+          "status_source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "有效证据为ALIPAY_PURCHASE_QUERY_V3，无证据为null。",
+            "x-presence": "总是返回"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "购买请求创建时间，不是付款时间；带时区的 ISO 8601 时间。",
+            "format": "date-time",
+            "x-presence": "总是返回"
+          },
+          "fetched_at": {
+            "type": "string",
+            "description": "本次读取时间，不代表刚请求过支付宝；带时区的 ISO 8601 时间。",
+            "format": "date-time",
+            "x-presence": "总是返回"
+          }
+        },
+        "required": [
+          "project_id",
+          "user_id",
+          "idempotency_key",
+          "status",
+          "trade_no",
+          "checked_at",
+          "status_source",
+          "created_at",
+          "fetched_at"
+        ],
+        "additionalProperties": false,
+        "description": ""
+      }
+    },
+    "responses": {
+      "APIError": {
+        "description": "JSON 错误正文，完整字段见 Error；保留原业务编号。",
+        "headers": {
+          "X-Request-ID": {
+            "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+            "schema": {
+              "type": "string",
+              "description": "追踪编号"
+            }
+          },
+          "Content-Type": {
+            "schema": {
+              "type": "string",
+              "description": "application/json; charset=utf-8"
+            }
+          },
+          "Cache-Control": {
+            "schema": {
+              "type": "string",
+              "description": "private, no-store"
+            }
+          },
+          "X-Content-Type-Options": {
+            "schema": {
+              "type": "string",
+              "description": "nosniff"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "JSON 错误正文，完整字段见 Error；保留原业务编号。",
+        "headers": {
+          "X-Request-ID": {
+            "description": "本次 HTTP 请求追踪编号，成功与失败均返回。",
+            "schema": {
+              "type": "string",
+              "description": "追踪编号"
+            }
+          },
+          "Content-Type": {
+            "schema": {
+              "type": "string",
+              "description": "application/json; charset=utf-8"
+            }
+          },
+          "Cache-Control": {
+            "schema": {
+              "type": "string",
+              "description": "private, no-store"
+            }
+          },
+          "X-Content-Type-Options": {
+            "schema": {
+              "type": "string",
+              "description": "nosniff"
+            }
+          },
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "description": "等待秒数"
+            },
+            "description": "当前 60 秒"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  }
+}

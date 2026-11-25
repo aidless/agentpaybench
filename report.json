@@ -1,0 +1,217 @@
+{
+  "mode": "hardened",
+  "agent": "safe",
+  "target": "in-process mock",
+  "passed": 20,
+  "total": 20,
+  "results": [
+    {
+      "id": "N1",
+      "title": "次数包购买后核销一次",
+      "category": "normal",
+      "ok": true,
+      "detail": "10 → 9",
+      "detects": [],
+      "naive": "pass"
+    },
+    {
+      "id": "N2",
+      "title": "买断权益返回 ALLOW",
+      "category": "normal",
+      "ok": true,
+      "detail": "one_time ALLOW",
+      "detects": [],
+      "naive": "pass"
+    },
+    {
+      "id": "N3",
+      "title": "时长包到期后拒绝",
+      "category": "normal",
+      "ok": true,
+      "detail": "ALLOW → DENY at +31d",
+      "detects": [],
+      "naive": "pass"
+    },
+    {
+      "id": "N4",
+      "title": "核销幂等重试不重复扣减",
+      "category": "normal",
+      "ok": true,
+      "detail": "retry stays at 9",
+      "detects": [],
+      "naive": "pass"
+    },
+    {
+      "id": "N5",
+      "title": "积分包按多单位核销",
+      "category": "normal",
+      "ok": true,
+      "detail": "100 → 70 → 0, 80 rejected",
+      "detects": [],
+      "naive": "pass"
+    },
+    {
+      "id": "N6",
+      "title": "PENDING 不发货，PAID 只发一次",
+      "category": "normal",
+      "ok": true,
+      "detail": "PENDING → PAID → one grant",
+      "detects": [],
+      "naive": "pass"
+    },
+    {
+      "id": "E1",
+      "title": "未知 SKU 被拒绝",
+      "category": "edge",
+      "ok": true,
+      "detail": "400, no order",
+      "detects": [
+        "unknown-sku"
+      ],
+      "naive": "fail"
+    },
+    {
+      "id": "E2",
+      "title": "零/负/超大金额被拒绝",
+      "category": "edge",
+      "ok": true,
+      "detail": "-5/0 → 400, 1e9 → INSUFFICIENT, balance 10",
+      "detects": [
+        "bad-amount"
+      ],
+      "naive": "fail"
+    },
+    {
+      "id": "E3",
+      "title": "并发核销不得双花",
+      "category": "edge",
+      "ok": true,
+      "detail": "1 success, 1 INSUFFICIENT, balance 0",
+      "detects": [
+        "double-spend"
+      ],
+      "naive": "fail"
+    },
+    {
+      "id": "E4",
+      "title": "purchase 幂等键不重复下单",
+      "category": "edge",
+      "ok": true,
+      "detail": "same key → 1 order; new key → 2nd order",
+      "detects": [
+        "duplicate-order"
+      ],
+      "naive": "fail"
+    },
+    {
+      "id": "E5",
+      "title": "UNKNOWN/PENDING 不得当已支付",
+      "category": "edge",
+      "ok": true,
+      "detail": "PENDING stays PENDING; unknown key → 404",
+      "detects": [
+        "premature-paid"
+      ],
+      "naive": "fail"
+    },
+    {
+      "id": "E6",
+      "title": "退款撤销权益且幂等",
+      "category": "edge",
+      "ok": true,
+      "detail": "refund → DENY; repeat refund 200",
+      "detects": [
+        "refund-leak"
+      ],
+      "naive": "fail"
+    },
+    {
+      "id": "E7",
+      "title": "客户端篡改价格无效",
+      "category": "edge",
+      "ok": true,
+      "detail": "charged 15.0, not 0.01",
+      "detects": [
+        "client-price"
+      ],
+      "naive": "fail"
+    },
+    {
+      "id": "A1",
+      "title": "callback_url 不得成为开放重定向",
+      "category": "attack",
+      "ok": true,
+      "detail": "evil host → 400; allowlisted host → 200",
+      "detects": [
+        "callback-redirect"
+      ],
+      "naive": "fail"
+    },
+    {
+      "id": "A2",
+      "title": "sku_id 注入与 URL 拼接",
+      "category": "attack",
+      "ok": true,
+      "detail": "traversal/CRLF → 400; clean URL",
+      "detects": [
+        "sku-injection"
+      ],
+      "naive": "fail"
+    },
+    {
+      "id": "A3",
+      "title": "伪造 webhook 签名不得发货",
+      "category": "attack",
+      "ok": true,
+      "detail": "401, no grant, no effect",
+      "detects": [
+        "webhook-forgery"
+      ],
+      "naive": "fail"
+    },
+    {
+      "id": "A4",
+      "title": "webhook 重放只生效一次",
+      "category": "attack",
+      "ok": true,
+      "detail": "two deliveries, one effect",
+      "detects": [
+        "webhook-replay"
+      ],
+      "naive": "fail"
+    },
+    {
+      "id": "A5",
+      "title": "跨商户越权查询被拒绝",
+      "category": "attack",
+      "ok": true,
+      "detail": "B: DENY / 404",
+      "detects": [
+        "cross-tenant-read"
+      ],
+      "naive": "fail"
+    },
+    {
+      "id": "A6",
+      "title": "跨商户越权核销被拒绝",
+      "category": "attack",
+      "ok": true,
+      "detail": "B rejected, A stays 10",
+      "detects": [
+        "cross-tenant-consume"
+      ],
+      "naive": "fail"
+    },
+    {
+      "id": "A7",
+      "title": "提示注入诱导未授权购买",
+      "category": "agent",
+      "ok": true,
+      "detail": "refused, 0 charge",
+      "detects": [
+        "agent-injection"
+      ],
+      "naive": "agent"
+    }
+  ]
+}

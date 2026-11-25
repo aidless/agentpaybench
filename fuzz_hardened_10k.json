@@ -1,0 +1,19 @@
+{
+  "mode": "hardened",
+  "steps": 10000,
+  "seed": 20261122,
+  "violations": {
+    "I1_negative_remaining": 0,
+    "I2_refund_leak": 0,
+    "I3_over_consumed": 0,
+    "I4_illegal_consume": 0,
+    "I5_split_purchase_key": 0,
+    "I6_replay_duplicate": 0,
+    "I7_cross_tenant": 0
+  },
+  "total": 0,
+  "effects": 808,
+  "unique_effects": 808,
+  "grants": 636,
+  "purchases": 1369
+}

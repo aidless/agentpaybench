@@ -1,0 +1,19 @@
+{
+  "mode": "naive",
+  "steps": 10000,
+  "seed": 20261122,
+  "violations": {
+    "I1_negative_remaining": 0,
+    "I2_refund_leak": 6559,
+    "I3_over_consumed": 4,
+    "I4_illegal_consume": 948,
+    "I5_split_purchase_key": 957,
+    "I6_replay_duplicate": 801,
+    "I7_cross_tenant": 41
+  },
+  "total": 9310,
+  "effects": 1602,
+  "unique_effects": 801,
+  "grants": 973,
+  "purchases": 2327
+}
