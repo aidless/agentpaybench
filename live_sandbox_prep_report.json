@@ -1,0 +1,114 @@
+{
+  "spec": "opcpay-openapi-1.1.2.json",
+  "purpose": "local request-body preflight only; no network calls, no key read",
+  "positive": [
+    {
+      "route": "POST /purchase",
+      "schema": "PurchaseInput",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "route": "POST /access",
+      "schema": "Buyer",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "route": "POST /consume",
+      "schema": "ConsumeInput",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "route": "POST /consumption",
+      "schema": "Lookup",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "route": "POST /purchase/query",
+      "schema": "Lookup",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "route": "POST /purchases/list",
+      "schema": "ListInput",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "route": "POST /consumptions/list",
+      "schema": "ListInput",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "route": "PUT /webhook",
+      "schema": "WebhookInput",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "route": "POST /events/list",
+      "schema": "ListInput",
+      "valid": true,
+      "errors": []
+    },
+    {
+      "route": "POST /transactions/query",
+      "schema": "Lookup",
+      "valid": true,
+      "errors": []
+    }
+  ],
+  "negative": [
+    {
+      "label": "POST /purchase: 非法 amount 不在 body（附加未知字段）",
+      "rejected": true,
+      "errors": [
+        "$: unexpected property amount"
+      ]
+    },
+    {
+      "label": "POST /consume: 空 reason（minLength=1 可判定）",
+      "rejected": true,
+      "errors": [
+        "$.reason: shorter than minLength 1"
+      ]
+    },
+    {
+      "label": "PUT /webhook: 缺 enabled",
+      "rejected": true,
+      "errors": [
+        "$: missing required enabled"
+      ]
+    },
+    {
+      "label": "POST /purchases/list: limit=0",
+      "rejected": true,
+      "errors": [
+        "$.limit: below minimum 1"
+      ]
+    }
+  ],
+  "curl_checklist": [
+    "# 1. 先只读探测，确认鉴权与能力位",
+    "curl -sS -H \"Authorization: Bearer $OPCPAY_API_KEY\" https://pay.ai6666.com/api/pay/v1/capabilities",
+    "",
+    "# 2. 目录价，只买测试商户最便宜的次数包；不传客户端价格",
+    "curl -sS -H \"Authorization: Bearer $OPCPAY_API_KEY\" https://pay.ai6666.com/api/pay/v1/product",
+    "",
+    "# 3. 购买Intent，idempotency_key 先落盘再调用，重试保持原值",
+    "curl -sS -X POST -H \"Authorization: Bearer $OPCPAY_API_KEY\" -H \"content-type: application/json\" -d '{\"user_id\":\"sandbox-user-001\",\"idempotency_key\":\"REAL_KEY_HERE\"}' https://pay.ai6666.com/api/pay/v1/purchase",
+    "",
+    "# 4. 支付后对账三条：服务端价=目录价；UNKNOWN 不发货；退款后 access=DENY",
+    "# 真实请求必须来自你自己的测试商户 key；本脚本不发包、不读 key、不记录订单。"
+  ],
+  "limits": [
+    "本地只校验 JSON Schema 子集；不含 HTTP 头/CSP/服务端状态机",
+    "真实支付与退款需要测试商户 yrp_live_ key，会产生小额真实资金",
+    "回调地址示例域名为占位符，需替换成控制台已登记官网同域名"
+  ]
+}
